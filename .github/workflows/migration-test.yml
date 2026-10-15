@@ -34,7 +34,7 @@ jobs:
       DATABASE_URL: postgresql://cbt_app:postgres@localhost:5432/cbt_cloud
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 12.11.2
       - uses: actions/setup-node@v4
