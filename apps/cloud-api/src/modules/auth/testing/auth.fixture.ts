@@ -109,6 +109,7 @@ export async function seedUser(
     recoveryCodeHashes: options.recoveryCodeHashes ?? [],
     failedLoginAttempts: options.failedLoginAttempts ?? 0,
     lockedUntil: options.lockedUntil ?? null,
+    lastLoginAt: null,
     passwordChangedAt: null,
     createdAt: now,
     updatedAt: now,

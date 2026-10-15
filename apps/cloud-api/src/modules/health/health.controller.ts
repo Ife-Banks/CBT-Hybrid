@@ -3,6 +3,7 @@ import { VERSION, type HealthCheck, type ServiceHealth } from '@cbt/shared-types
 import * as os from 'node:os';
 import { ConfigService } from '../../common/config/config.service';
 import { Public } from '../../common/decorators/public.decorator';
+import { DrizzleService } from '../../shared/database/drizzle.service';
 
 /** Human-readable uptime, for example `2h 34m 12s`. */
 function formatUptime(seconds: number): string {
@@ -20,14 +21,15 @@ function formatUptime(seconds: number): string {
 @Public()
 @Controller()
 export class HealthController {
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly drizzle: DrizzleService,
+  ) {}
 
   @Get('health')
-  health(): HealthCheck {
+  async health(): Promise<HealthCheck> {
     const services: Record<string, ServiceHealth> = {
-      database: this.config.get('DATABASE_URL')
-        ? { status: 'ok', details: 'configured; live check lands with the database in phase 3' }
-        : { status: 'degraded', details: 'not configured' },
+      database: await this.databaseHealth(),
       redis: this.config.get('REDIS_URL')
         ? { status: 'ok', details: 'configured; live check lands with Redis in a later phase' }
         : { status: 'degraded', details: 'not configured' },
@@ -45,6 +47,17 @@ export class HealthController {
       timestamp: new Date().toISOString(),
       uptime: formatUptime(process.uptime()),
       services,
+    };
+  }
+
+  private async databaseHealth(): Promise<ServiceHealth> {
+    if (!this.config.get('DATABASE_URL')) {
+      return { status: 'degraded', details: 'not configured' };
+    }
+    const check = await this.drizzle.healthCheck();
+    return {
+      status: check.status,
+      details: check.responseTime || 'connected',
     };
   }
 

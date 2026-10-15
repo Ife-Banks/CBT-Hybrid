@@ -78,7 +78,9 @@ export class DevSeedService implements OnModuleInit {
         recoveryCodeHashes: [],
         failedLoginAttempts: 0,
         lockedUntil: null,
+        lastLoginAt: null,
         passwordChangedAt: null,
+        preferences: undefined,
         createdAt: now,
         updatedAt: now,
       } satisfies UserRecord);

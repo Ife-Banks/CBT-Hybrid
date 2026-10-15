@@ -34,7 +34,9 @@ export interface UserRecord {
   recoveryCodeHashes: string[];
   failedLoginAttempts: number;
   lockedUntil: Date | null;
+  lastLoginAt: Date | null;
   passwordChangedAt: Date | null;
+  preferences?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -47,6 +49,7 @@ export interface SessionRecord {
   tokenHash: string;
   ip: string;
   userAgent: string;
+  deviceName?: string;
   createdAt: Date;
   lastSeenAt: Date;
   expiresAt: Date;
@@ -60,9 +63,11 @@ export interface OtpChallengeRecord {
   id: string;
   userId: string;
   purpose: 'password_reset';
+  sentTo: string;
   /** SHA-256 hex of the code. */
   codeHash: string;
   attempts: number;
+  maxAttempts: number;
   createdAt: Date;
   expiresAt: Date;
   consumedAt: Date | null;

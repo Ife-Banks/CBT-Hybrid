@@ -4,6 +4,7 @@ import { accessSync, constants, statfsSync } from 'node:fs';
 import * as os from 'node:os';
 import { SchoolConfigService } from '../../common/config/school-config.service';
 import { SqliteService } from '../../shared/database/sqlite.service';
+import { DrizzleSqliteService } from '../../shared/database/drizzle-sqlite.service';
 
 /** Human-readable uptime, for example `2h 34m 12s`. */
 function formatUptime(seconds: number): string {
@@ -23,18 +24,14 @@ export class HealthController {
   constructor(
     private readonly config: SchoolConfigService,
     private readonly sqlite: SqliteService,
+    private readonly drizzle: DrizzleSqliteService,
   ) {}
 
   @Get('health')
-  health(): HealthCheck {
-    const databaseStarted = Date.now();
-    const databaseOk = this.sqlite.ping();
+  async health(): Promise<HealthCheck> {
+    const databaseCheck = await this.drizzle.healthCheck();
     const services: Record<string, ServiceHealth> = {
-      database: {
-        status: databaseOk ? 'ok' : 'error',
-        responseTime: `${Date.now() - databaseStarted}ms`,
-        ...(databaseOk ? {} : { details: 'SQLite query failed' }),
-      },
+      database: databaseCheck,
       filesystem: this.filesystem(),
       memory: this.memory(),
     };

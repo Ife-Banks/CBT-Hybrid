@@ -1,0 +1,10 @@
+#!/usr/bin/env tsx
+import { runMigrations } from '../src/shared/database/migration-runner';
+
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+  console.error('DATABASE_URL environment variable is required');
+  process.exit(1);
+}
+
+await runMigrations(databaseUrl);

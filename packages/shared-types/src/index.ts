@@ -18,6 +18,7 @@ export * from './business/exams';
 export * from './business/student-codes';
 export * from './config/database';
 export * from './config/redis';
+export * from './db/schema';
 export * from './errors/error-codes';
 export * from './permissions';
 export * from './util/ids';

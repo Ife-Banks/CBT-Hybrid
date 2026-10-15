@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { ConfigService } from '../../common/config/config.service';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { PasswordService } from './password.service';
@@ -19,16 +20,21 @@ import { AuthGuard } from './guards/auth.guard';
 import { CsrfGuard } from './guards/csrf.guard';
 import { AbilitiesGuard } from './guards/abilities.guard';
 import { DevSeedService } from './dev-seed.service';
+import { DrizzleUserRepository } from './repositories/drizzle-user.repository';
+import { DrizzleSessionRepository } from './repositories/drizzle-session.repository';
+import { DrizzleOtpChallengeRepository } from './repositories/drizzle-otp.repository';
+import { DrizzleService } from '../../shared/database/drizzle.service';
+import { DatabaseModule } from '../../shared/database/database.module';
 
 /**
  * Authentication and authorization (CBT-04 M2; API spec sections 1.3 and 3).
  *
  * The three guards are registered globally in this order: authenticate, then
- * check CSRF, then check CASL abilities. Repositories are bound to in-memory
- * implementations for Phase 2; the Drizzle-backed ones replace these providers
- * once the data layer exists.
+ * check CSRF, then check CASL abilities. Repositories use Drizzle when
+ * DATABASE_URL is configured, otherwise fall back to in-memory implementations.
  */
 @Module({
+  imports: [DatabaseModule.register()],
   controllers: [AuthController],
   providers: [
     PasswordService,
@@ -39,9 +45,34 @@ import { DevSeedService } from './dev-seed.service';
     ClockService,
     AuthService,
     DevSeedService,
-    { provide: USER_REPOSITORY, useClass: InMemoryUserRepository },
-    { provide: SESSION_REPOSITORY, useClass: InMemorySessionRepository },
-    { provide: OTP_CHALLENGE_REPOSITORY, useClass: InMemoryOtpChallengeRepository },
+    DrizzleService,
+    {
+      provide: USER_REPOSITORY,
+      useFactory: (config: ConfigService, drizzle: DrizzleService) => {
+        return config.get('DATABASE_URL')
+          ? new DrizzleUserRepository(drizzle)
+          : new InMemoryUserRepository();
+      },
+      inject: [ConfigService, DrizzleService],
+    },
+    {
+      provide: SESSION_REPOSITORY,
+      useFactory: (config: ConfigService, drizzle: DrizzleService) => {
+        return config.get('DATABASE_URL')
+          ? new DrizzleSessionRepository(drizzle)
+          : new InMemorySessionRepository();
+      },
+      inject: [ConfigService, DrizzleService],
+    },
+    {
+      provide: OTP_CHALLENGE_REPOSITORY,
+      useFactory: (config: ConfigService, drizzle: DrizzleService) => {
+        return config.get('DATABASE_URL')
+          ? new DrizzleOtpChallengeRepository(drizzle)
+          : new InMemoryOtpChallengeRepository();
+      },
+      inject: [ConfigService, DrizzleService],
+    },
     { provide: NOTIFIER, useClass: LoggingNotifier },
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_GUARD, useClass: CsrfGuard },
