@@ -7,6 +7,114 @@ Precedence rules live in `CBT-04-Build-Specification.md` section 1.2.
 
 ---
 
+## Phase 1
+
+Where `CBT-Phase-1-Infrastructure.md` conflicts with
+`CBT-04-Build-Specification.md` or `CBT-03-API-and-Sync-Specification (1).md`,
+the latter two win (CBT-04 section 1.2 precedence).
+
+### D.5 - Error envelope: `application/problem+json`  *(decided)*
+
+- **Conflict.** Phase 1 task 4 sketches `{ error: { code, message, details,
+  correlationId }, timestamp }`. The API spec (section 1.4) and CBT-04 require
+  RFC 9457 `application/problem+json` with `type`, `title`, `status`, `code`,
+  `detail`, `errors[]` and `request_id`.
+- **Decision.** `application/problem+json` is canonical and is what both servers
+  emit (global exception filter + rate-limit handler). `@cbt/shared-types`
+  exports `ProblemDetailsSchema`; the Phase-1 shape is not implemented.
+
+### D.6 - Student-code alphabet excludes `L`  *(decided)*
+
+- **Conflict.** Phase 1 task 3 writes the alphabet as
+  `23456789ABCDEFGHJKLMNPQRSTUVWXYZ` (32 chars, includes `L`). CBT-04 section 4.1
+  (authoritative, with vectors) uses **31 chars**: `23456789ABCDEFGHJKMNPQRSTUVWXYZ`
+  (excludes `0 1 I L O`).
+- **Decision.** The 31-character set is implemented in `exam-core` and
+  `shared-types`; the Phase 1 text is a typo. All section 4.1 vectors pass.
+
+### D.7 - Multiple-choice marking is all-or-nothing  *(decided)*
+
+- **Conflict.** Phase 1's marking section implies partial credit for
+  multiple-choice. CBT-04 section 4.6 specifies **all-or-nothing** (exact set →
+  full marks, subset/extra → 0).
+- **Decision.** All-or-nothing, with a test asserting both a subset and a
+  superset score 0.
+
+### D.8 - Configuration variable names  *(decided)*
+
+- **Conflict.** Phase 1 uses `CLOUD_API_PORT` and `S3_ACCESS_KEY_ID`/
+  `S3_SECRET_ACCESS_KEY`. CBT-04 section 11 names `PORT`, `PUBLIC_URL`,
+  `S3_ACCESS_KEY`, `S3_SECRET_KEY`.
+- **Decision.** Use the CBT-04 names. Cloud API reads `PORT` (default 3000);
+  school server reads `PORT` (default 8080), `CBT_DATA_DIR` (default `./data`).
+
+### D.9 - NestJS tests use SWC, not esbuild  *(decided)*
+
+- **Context.** NestJS dependency injection needs `emitDecoratorMetadata`
+  (`design:paramtypes`). Vitest's default esbuild transform does not emit it, so
+  constructing the Nest testing module fails to resolve dependencies.
+- **Decision.** Both Nest apps compile tests with `unplugin-swc` +
+  `@swc/core` (`vitest.config.mts` sets `legacyDecorator` and
+  `decoratorMetadata`). `@swc/core` is allowed in `pnpm-workspace.yaml`
+  (`allowBuilds`). Non-Nest packages keep the default esbuild transform.
+
+### D.10 - TSConfig split: `tsconfig.json` vs `tsconfig.build.json`  *(decided)*
+
+- **Context.** Tests (`*.spec.ts`) must be type-checked but must not be emitted
+  into `dist`.
+- **Decision.** `tsconfig.json` includes tests and is used by `typecheck`;
+  `tsconfig.build.json` extends it, excludes `**/*.spec.ts`, and is used by
+  `build`. Applied to `exam-core`, `shared-types`, `cloud-api`, `school-server`.
+
+### D.11 - `common/` is duplicated across the two Nest apps  *(decided, revisit)*
+
+- **Context.** `http-types.ts`, the exception filter, the logging interceptor
+  and the logger service are near-identical in `cloud-api` and `school-server`.
+- **Decision.** Kept per-app, matching the Phase 1 task structure (both apps get
+  their own `common/`). A shared `packages/nest-common` would remove the
+  duplication; revisit when a third Nest app appears or the plumbing changes.
+
+### D.12 - School-server storage uses built-in `node:sqlite`  *(decided)*
+
+- **Context.** The school server needs SQLite. `better-sqlite3` is a native
+  module (build step, admin/toolchain risk on school PCs). Node 24 ships
+  `node:sqlite` (`DatabaseSync`), verified working on this machine
+  (Node v24.21.0).
+- **Decision.** Use `node:sqlite`; no native build. WAL mode and foreign keys
+  are enabled on open. Note the API is still marked experimental in Node 24 — if
+  it changes, isolate the dependency behind `SqliteService`.
+
+### D.13 - Health response extends the Phase 1 sketch  *(decided)*
+
+- **Context.** Phase 1 sketches `{ status, timestamp, services }`; CBT-04 M0
+  mentioned `{ status, version, db }`.
+- **Decision.** One shared `HealthCheckSchema`: `{ status, service, version,
+  timestamp, uptime, services: { <name>: { status, responseTime?, details? } } }`.
+  Cloud API reports `database`/`redis` as `degraded` when unconfigured (they are
+  wired in Phase 3); overall `status` is `error` only if a service is `error`.
+
+### D.14 - Rate-limit responses are `problem+json`  *(decided)*
+
+- **Context.** `express-rate-limit` runs as Express middleware, before Nest
+  routing, so its default plain-text 429 would bypass the global exception
+  filter. A request id also needs to exist before the limiter runs.
+- **Decision.** A `request-id` middleware runs first (UUIDv7, reuses inbound
+  `x-request-id`), and the limiter uses a custom handler that emits a
+  `RATE_LIMITED` problem+json body. Limits: 100 requests / 60s per IP by default
+  (`RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_MS`).
+
+### D.15 - Two copies of the API spec exist in `docs/`  *(decided)*
+
+- **Conflict.** `CBT-03-API-and-Sync-Specification.md` and
+  `CBT-03-API-and-Sync-Specification (1).md` both exist, committed as-is. The
+  `(1)` copy matches the section 4 test vectors; the other copy's PIN-reset text
+  ("first 8 digits … as a decimal number") is wrong.
+- **Decision.** Treat the `(1)` copy as authoritative. Both files are left in
+  place (pre-existing, not ours to delete). If the duplicate is removed later,
+  the `(1)` content should be the one kept.
+
+---
+
 ## Phase 0
 
 ### D.1 - Development database strategy: cloud services instead of Docker  *(decided)*
