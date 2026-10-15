@@ -1,0 +1,17 @@
+{
+  "name": "@cbt/test-fixtures",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Sample import files, demo data builders and load-test clients.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "node ../../scripts/clean.mjs dist"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.5",
+    "typescript": "6.0.3"
+  }
+}

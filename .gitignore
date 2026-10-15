@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+out/
+.next/
+.turbo/
+*.tsbuildinfo
+
+# Test / coverage
+coverage/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Databases / local data
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+
+# Local tooling metadata
+.freebuff/

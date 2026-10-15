@@ -1,0 +1,48 @@
+# Migration testing.
+
+# Dormant until the cloud data layer lands (Phase 3). The path filters below
+# mean this workflow only runs once drizzle schema/migrations exist.
+name: Migration Test
+
+on:
+  pull_request:
+    paths:
+      - 'apps/cloud-api/drizzle/**'
+      - 'apps/cloud-api/src/database/**'
+      - '**/drizzle.config.*'
+  workflow_dispatch:
+
+jobs:
+  migrate:
+    name: Migrate on a clean database
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: cbt_app
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cbt_cloud
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cbt_app -d cbt_cloud"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://cbt_app:postgres@localhost:5432/cbt_cloud
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.11.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Apply migrations
+        run: pnpm --filter @cbt/cloud-api db:migrate
+      - name: Roll back migrations
+        run: pnpm --filter @cbt/cloud-api db:rollback

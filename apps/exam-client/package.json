@@ -1,0 +1,13 @@
+{
+  "name": "@cbt/exam-client",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Student exam client (React + Vite, built to static files and served by the school server).",
+  "scripts": {
+    "build": "node ../../scripts/copy-static.mjs public dist",
+    "typecheck": "node ../../scripts/noop.mjs typecheck",
+    "test": "node ../../scripts/noop.mjs test",
+    "dev": "node ../../scripts/serve-static.mjs public 5173",
+    "clean": "node ../../scripts/clean.mjs dist"
+  }
+}

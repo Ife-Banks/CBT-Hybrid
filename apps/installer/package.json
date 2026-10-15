@@ -1,0 +1,12 @@
+{
+  "name": "@cbt/installer",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Inno Setup script, WinSW configuration and build scripts for the Windows installer (placeholder).",
+  "scripts": {
+    "build": "node ../../scripts/copy-static.mjs static dist",
+    "typecheck": "node ../../scripts/noop.mjs typecheck",
+    "test": "node ../../scripts/noop.mjs test",
+    "clean": "node ../../scripts/noop.mjs clean"
+  }
+}

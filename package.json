@@ -1,0 +1,37 @@
+{
+  "name": "cbt-school",
+  "version": "0.0.0",
+  "private": true,
+  "description": "School CBT Platform: cloud API, school server, exam client and portals.",
+  "packageManager": "pnpm@12.11.2",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:setup": "node scripts/dev-setup.mjs",
+    "dev:start": "node scripts/dev-start.mjs",
+    "dev:clean": "node scripts/dev-clean.mjs",
+    "dev:logs": "node scripts/dev-logs.mjs",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "clean": "turbo run clean",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check:offline": "node scripts/check-offline.mjs",
+    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm check:offline"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "26.6.5",
+    "eslint": "10.12.0",
+    "eslint-config-prettier": "10.1.8",
+    "globals": "17.13.0",
+    "prettier": "3.9.10",
+    "turbo": "2.11.8",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.2"
+  }
+}

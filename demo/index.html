@@ -1,0 +1,1453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>School CBT Platform — Interactive Demo</title>
+<style>
+  :root{
+    --ink:#0f172a; --ink2:#334155; --muted:#64748b; --line:#e2e8f0; --bg:#f6f7fb;
+    --card:#ffffff; --brand:#4338ca; --brand2:#6366f1; --brand-soft:#eef2ff;
+    --ok:#15803d; --ok-soft:#dcfce7; --warn:#b45309; --warn-soft:#fef3c7;
+    --bad:#b91c1c; --bad-soft:#fee2e2; --info:#0369a1; --info-soft:#e0f2fe;
+    --lab:#0b1220; --lab2:#111a2e;
+    --r:14px; --sh:0 1px 2px rgba(15,23,42,.06),0 8px 24px rgba(15,23,42,.06);
+    font-size:16px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--ink); -webkit-font-smoothing:antialiased;
+  }
+  button{font:inherit; cursor:pointer}
+  .view{display:none}
+  .view.active{display:block}
+
+  /* ---------- shared bits ---------- */
+  .topbar{
+    position:sticky; top:0; z-index:30; display:flex; align-items:center; gap:14px;
+    padding:12px 20px; background:rgba(255,255,255,.92); backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);
+  }
+  .topbar.dark{background:rgba(11,18,32,.95); border-bottom:1px solid #1e293b; color:#e2e8f0}
+  .topbar h1{font-size:1rem; margin:0; font-weight:700; letter-spacing:.2px}
+  .topbar .sub{color:var(--muted); font-size:.8rem}
+  .topbar.dark .sub{color:#94a3b8}
+  .spacer{flex:1}
+  .btn{
+    border:1px solid var(--line); background:#fff; color:var(--ink); border-radius:10px;
+    padding:8px 14px; font-weight:600; font-size:.875rem; transition:.15s;
+  }
+  .btn:hover{border-color:#cbd5e1; background:#f8fafc}
+  .btn.primary{background:var(--brand); border-color:var(--brand); color:#fff}
+  .btn.primary:hover{background:#3730a3}
+  .btn.ghostdark{background:transparent; border-color:#334155; color:#e2e8f0}
+  .btn.ghostdark:hover{background:#1e293b}
+  .btn.big{padding:12px 22px; font-size:1rem}
+  .btn:disabled{opacity:.5; cursor:not-allowed}
+  .chip{display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:3px 10px; font-size:.72rem; font-weight:700; letter-spacing:.2px}
+  .chip.ok{background:var(--ok-soft); color:var(--ok)}
+  .chip.warn{background:var(--warn-soft); color:var(--warn)}
+  .chip.bad{background:var(--bad-soft); color:var(--bad)}
+  .chip.info{background:var(--info-soft); color:var(--info)}
+  .chip.mute{background:#f1f5f9; color:var(--muted)}
+  .chip.brand{background:var(--brand-soft); color:var(--brand)}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--sh)}
+  .pad{padding:20px}
+  .grid{display:grid; gap:16px}
+  h2.sec{font-size:.78rem; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); margin:26px 0 10px}
+  table{width:100%; border-collapse:collapse; font-size:.86rem}
+  th{text-align:left; font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); padding:9px 12px; border-bottom:1px solid var(--line); background:#f8fafc}
+  td{padding:10px 12px; border-bottom:1px solid #f1f5f9; vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  .muted{color:var(--muted)}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .wrap{max-width:1180px; margin:0 auto; padding:22px 20px 70px}
+  .stat{padding:16px 18px}
+  .stat .n{font-size:1.7rem; font-weight:800; letter-spacing:-.5px}
+  .stat .l{font-size:.78rem; color:var(--muted); margin-top:2px}
+  .toast{
+    position:fixed; left:50%; bottom:26px; transform:translate(-50%,20px); opacity:0;
+    background:#0f172a; color:#fff; padding:11px 18px; border-radius:10px; font-size:.88rem;
+    box-shadow:0 10px 30px rgba(0,0,0,.3); z-index:100; transition:.25s; pointer-events:none;
+  }
+  .toast.show{opacity:1; transform:translate(-50%,0)}
+
+  /* ---------- home ---------- */
+  #view-home .hero{
+    background:radial-gradient(1200px 500px at 15% -10%, #4f46e5 0%, transparent 60%),
+               radial-gradient(900px 420px at 95% 0%, #0ea5e9 0%, transparent 55%),
+               var(--lab);
+    color:#fff; padding:56px 24px 44px; text-align:center;
+  }
+  #view-home .hero .badge{
+    display:inline-block; font-size:.72rem; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
+    background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22); color:#dbeafe;
+    padding:6px 14px; border-radius:999px; margin-bottom:18px;
+  }
+  #view-home h1{font-size:clamp(1.7rem,4vw,2.6rem); margin:0 0 10px; letter-spacing:-.02em}
+  #view-home .hero p{max-width:640px; margin:0 auto; color:#cbd5e1; line-height:1.6; font-size:1rem}
+  .roles{display:grid; grid-template-columns:repeat(auto-fit,minmax(255px,1fr)); gap:16px; padding:34px 20px 10px; max-width:1180px; margin:0 auto}
+  .role{
+    text-align:left; background:#fff; border:1px solid var(--line); border-radius:16px; padding:20px;
+    box-shadow:var(--sh); transition:.18s; position:relative; overflow:hidden;
+  }
+  .role:hover{transform:translateY(-3px); border-color:#c7d2fe; box-shadow:0 12px 34px rgba(67,56,202,.14)}
+  .role .ico{width:44px; height:44px; border-radius:12px; display:grid; place-items:center; font-size:1.3rem; background:var(--brand-soft); margin-bottom:12px}
+  .role h3{margin:0 0 5px; font-size:1.02rem}
+  .role p{margin:0; color:var(--muted); font-size:.85rem; line-height:1.5}
+  .role .where{position:absolute; top:16px; right:16px; font-size:.66rem; font-weight:700; color:var(--muted); background:#f1f5f9; padding:3px 9px; border-radius:999px; text-transform:uppercase; letter-spacing:.06em}
+  .arch{max-width:1180px; margin:26px auto 0; padding:0 20px 60px}
+  .arch pre{
+    background:var(--lab); color:#93c5fd; border-radius:14px; padding:20px; overflow:auto;
+    font-size:.76rem; line-height:1.55; border:1px solid #1e293b;
+  }
+
+  /* ---------- exam client ---------- */
+  #view-student{background:#fff; min-height:100vh}
+  .exam-top{
+    background:var(--lab); color:#e2e8f0; display:flex; align-items:center; gap:16px;
+    padding:12px 20px; position:sticky; top:0; z-index:20;
+  }
+  .exam-top .school{font-weight:700; font-size:.9rem}
+  .exam-top .exam{color:#94a3b8; font-size:.8rem}
+  .timer{
+    font-family:ui-monospace,Menlo,Consolas,monospace; font-weight:700; font-size:1.15rem;
+    background:#1e293b; padding:6px 14px; border-radius:9px; letter-spacing:.06em;
+  }
+  .timer.warn{background:#7c2d12; color:#fed7aa}
+  .timer.crit{background:#7f1d1d; color:#fecaca; animation:pulse 1s infinite}
+  @keyframes pulse{50%{opacity:.55}}
+  .save-state{font-size:.78rem; color:#86efac; display:flex; align-items:center; gap:6px}
+  .save-state .dot{width:8px; height:8px; border-radius:50%; background:#22c55e}
+  .save-state.saving{color:#fcd34d}
+  .save-state.saving .dot{background:#f59e0b}
+  .exam-body{display:grid; grid-template-columns:230px 1fr; gap:0; min-height:calc(100vh - 56px)}
+  .exam-body.primary-layout{grid-template-columns:1fr}
+  .navi{border-right:1px solid var(--line); padding:18px 16px; background:#f8fafc}
+  .navi h4{margin:0 0 12px; font-size:.74rem; text-transform:uppercase; letter-spacing:.1em; color:var(--muted)}
+  .navgrid{display:grid; grid-template-columns:repeat(5,1fr); gap:7px}
+  .navcell{
+    aspect-ratio:1; border-radius:9px; border:1.5px solid var(--line); background:#fff;
+    font-size:.78rem; font-weight:700; color:var(--ink2); display:grid; place-items:center; position:relative;
+  }
+  .navcell.answered{background:var(--brand); border-color:var(--brand); color:#fff}
+  .navcell.current{outline:3px solid #a5b4fc; outline-offset:2px}
+  .navcell.flagged::after{content:"⚑"; position:absolute; top:-6px; right:-5px; font-size:.7rem; background:#f59e0b; color:#fff; border-radius:50%; width:15px; height:15px; display:grid; place-items:center}
+  .legend{margin-top:16px; font-size:.72rem; color:var(--muted); line-height:1.9}
+  .legend i{width:11px; height:11px; border-radius:4px; display:inline-block; margin-right:7px; vertical-align:-1px; border:1.5px solid var(--line); background:#fff}
+  .legend i.a{background:var(--brand); border-color:var(--brand)}
+  .legend i.f{background:#f59e0b; border-color:#f59e0b}
+  .qpane{padding:28px 34px 40px; max-width:860px}
+  .qmeta{display:flex; gap:10px; align-items:center; margin-bottom:16px; flex-wrap:wrap}
+  .qstem{font-size:1.22rem; line-height:1.65; font-weight:600; margin:6px 0 22px}
+  .opt{
+    display:flex; align-items:center; gap:13px; width:100%; text-align:left; margin-bottom:11px;
+    padding:14px 16px; border:2px solid var(--line); border-radius:12px; background:#fff; font-size:1rem; transition:.13s;
+  }
+  .opt:hover{border-color:#c7d2fe; background:#fafaff}
+  .opt.sel{border-color:var(--brand); background:var(--brand-soft)}
+  .opt .k{
+    width:30px; height:30px; flex:none; border-radius:8px; background:#f1f5f9; color:var(--ink2);
+    display:grid; place-items:center; font-weight:800; font-size:.85rem;
+  }
+  .opt.sel .k{background:var(--brand); color:#fff}
+  .fillinput{
+    width:100%; max-width:420px; padding:15px 16px; font-size:1.05rem; border:2px solid var(--line);
+    border-radius:12px; outline:none;
+  }
+  .fillinput:focus{border-color:var(--brand)}
+  .exam-actions{display:flex; gap:12px; margin-top:28px; align-items:center; flex-wrap:wrap}
+  .primary-layout .qpane{max-width:760px; margin:0 auto; padding-top:40px}
+  .primary-layout .qstem{font-size:1.5rem}
+  .primary-layout .opt{padding:18px 18px; font-size:1.12rem; border-radius:14px}
+  .primary-layout .navi{display:none}
+  .steps{max-width:720px; margin:0 auto; padding:60px 24px}
+  .steps .card{padding:30px}
+  .loginbox{max-width:460px; margin:0 auto; padding:70px 24px}
+  .loginbox .card{padding:28px}
+  .field{margin-bottom:16px}
+  .field label{display:block; font-size:.8rem; font-weight:700; color:var(--ink2); margin-bottom:6px}
+  .field input{
+    width:100%; padding:13px 14px; font-size:1.02rem; border:2px solid var(--line); border-radius:10px;
+    outline:none; letter-spacing:.05em;
+  }
+  .field input:focus{border-color:var(--brand)}
+  .field input.err{border-color:#fca5a5; background:#fff7f7}
+  .errmsg{color:var(--bad); font-size:.83rem; margin-top:7px; display:none; line-height:1.45}
+  .errmsg.show{display:block}
+  .hintbox{background:var(--brand-soft); border:1px dashed #c7d2fe; border-radius:10px; padding:12px 14px; font-size:.82rem; color:#3730a3; line-height:1.7; margin-bottom:18px}
+  .review-row{display:flex; align-items:center; gap:12px; padding:11px 4px; border-bottom:1px solid #f1f5f9; font-size:.9rem}
+  .review-row .num{width:30px; height:30px; border-radius:8px; display:grid; place-items:center; font-weight:700; font-size:.8rem; background:#f1f5f9; color:var(--ink2); flex:none}
+  .review-row .num.done{background:var(--ok-soft); color:var(--ok)}
+  .done-wrap{max-width:560px; margin:0 auto; padding:70px 24px; text-align:center}
+  .scorecircle{
+    width:150px; height:150px; border-radius:50%; margin:22px auto; display:grid; place-items:center;
+    background:conic-gradient(var(--brand) calc(var(--p)*1%), #e2e8f0 0);
+  }
+  .scorecircle .inner{width:118px; height:118px; border-radius:50%; background:#fff; display:grid; place-items:center; text-align:center}
+  .scorecircle .inner b{font-size:1.9rem; display:block; letter-spacing:-1px}
+  .scorecircle .inner span{font-size:.72rem; color:var(--muted)}
+  .modal-back{position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; place-items:center; z-index:90; padding:20px}
+  .modal-back.show{display:grid}
+  .modal{background:#fff; border-radius:16px; padding:26px; max-width:430px; width:100%; box-shadow:0 30px 60px rgba(0,0,0,.35)}
+  .modal h3{margin:0 0 8px}
+  .modal p{color:var(--muted); font-size:.9rem; line-height:1.6; margin:0 0 18px}
+  .modal .row{display:flex; gap:10px; justify-content:flex-end}
+
+  /* ---------- portal layout (teacher/admin/owner) ---------- */
+  .portal{display:grid; grid-template-columns:225px 1fr; min-height:calc(100vh - 57px)}
+  .sidenav{background:#fff; border-right:1px solid var(--line); padding:18px 12px}
+  .sidenav .who{padding:8px 10px 16px; border-bottom:1px solid var(--line); margin-bottom:12px}
+  .sidenav .who b{display:block; font-size:.92rem}
+  .sidenav .who span{font-size:.75rem; color:var(--muted)}
+  .navbtn{
+    display:flex; align-items:center; gap:10px; width:100%; text-align:left; border:none; background:none;
+    padding:10px 12px; border-radius:9px; font-size:.88rem; font-weight:600; color:var(--ink2); margin-bottom:3px;
+  }
+  .navbtn:hover{background:#f1f5f9}
+  .navbtn.on{background:var(--brand-soft); color:var(--brand)}
+  .navbtn .n{margin-left:auto; background:#fee2e2; color:#b91c1c; font-size:.68rem; font-weight:800; padding:2px 7px; border-radius:999px}
+  .pane{display:none}
+  .pane.on{display:block}
+  .panehead{display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap}
+  .panehead h2{margin:0; font-size:1.25rem; letter-spacing:-.01em}
+  .panehead .sub{color:var(--muted); font-size:.85rem}
+  .stepbar{display:flex; gap:8px; align-items:center; margin-bottom:16px; flex-wrap:wrap}
+  .step{font-size:.78rem; font-weight:700; padding:6px 13px; border-radius:999px; background:#f1f5f9; color:var(--muted)}
+  .step.on{background:var(--brand); color:#fff}
+  .step.done{background:var(--ok-soft); color:var(--ok)}
+  .bars{display:flex; flex-direction:column; gap:9px}
+  .bar{display:grid; grid-template-columns:1fr 190px 46px; gap:12px; align-items:center; font-size:.8rem}
+  .bar .track{height:9px; background:#eef2f7; border-radius:99px; overflow:hidden}
+  .bar .fill{height:100%; background:linear-gradient(90deg,var(--brand2),var(--brand)); border-radius:99px}
+  .packflow{display:flex; gap:10px; align-items:center; flex-wrap:wrap; font-size:.82rem}
+  .packstep{padding:8px 13px; border-radius:9px; background:#f1f5f9; color:var(--muted); font-weight:700; font-size:.76rem}
+  .packstep.on{background:var(--brand); color:#fff}
+  .packstep.ok{background:var(--ok-soft); color:var(--ok)}
+
+  /* ---------- invigilator console ---------- */
+  #view-console{background:#0b1220; min-height:100vh; color:#e2e8f0}
+  #view-console .card{background:#111a2e; border-color:#1e293b; box-shadow:none; color:#e2e8f0}
+  #view-console .wrap{color:#e2e8f0}
+  #view-console h2.sec{color:#64748b}
+  #view-console td{border-bottom:1px solid #1e293b}
+  #view-console th{background:#0f172a; color:#64748b; border-bottom:1px solid #1e293b}
+  .ready-list{display:flex; flex-direction:column; gap:9px}
+  .ready{display:flex; gap:11px; align-items:flex-start; padding:11px 14px; border-radius:10px; background:#0f172a; border:1px solid #1e293b; font-size:.85rem}
+  .ready .tick{width:20px; height:20px; border-radius:50%; display:grid; place-items:center; font-size:.7rem; font-weight:900; flex:none; margin-top:1px}
+  .ready .tick.ok{background:#14532d; color:#86efac}
+  .ready .tick.no{background:#7f1d1d; color:#fecaca}
+  .ready b{display:block; font-size:.86rem; margin-bottom:2px}
+  .ready span{color:#94a3b8; font-size:.8rem; line-height:1.5}
+  .keybox{
+    text-align:center; padding:26px; border-radius:16px; background:linear-gradient(160deg,#1d4ed8,#312e81);
+    border:1px solid #4338ca;
+  }
+  .keybox .k{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:clamp(2.6rem,8vw,4.2rem); font-weight:800; letter-spacing:.22em; color:#fff; margin:8px 0}
+  .keybox .lbl{font-size:.75rem; text-transform:uppercase; letter-spacing:.16em; color:#c7d2fe}
+  .keybox .note{font-size:.82rem; color:#bfdbfe; margin-top:8px}
+  .seats{display:grid; grid-template-columns:repeat(auto-fill,minmax(158px,1fr)); gap:11px}
+  .seat{background:#0f172a; border:1px solid #1e293b; border-radius:12px; padding:12px 13px; font-size:.78rem}
+  .seat .sn{font-weight:800; font-size:.8rem; display:flex; justify-content:space-between; align-items:center}
+  .seat .st{font-size:.68rem; font-weight:800; padding:2px 7px; border-radius:999px}
+  .seat .who{color:#94a3b8; margin:5px 0 7px; font-size:.76rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .seat .prog{height:6px; background:#1e293b; border-radius:99px; overflow:hidden}
+  .seat .prog i{display:block; height:100%; background:#6366f1; transition:width .5s}
+  .st.notstarted{background:#1e293b; color:#94a3b8}
+  .st.live{background:#1e40af; color:#bfdbfe}
+  .st.sub{background:#14532d; color:#86efac}
+  .st.off{background:#78350f; color:#fcd34d}
+  .healthgrid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:11px}
+  .hcard{background:#0f172a; border:1px solid #1e293b; border-radius:12px; padding:14px}
+  .hcard .v{font-size:1.15rem; font-weight:800}
+  .hcard .l{font-size:.7rem; color:#64748b; text-transform:uppercase; letter-spacing:.08em; margin-top:3px}
+  .hcard.good .v{color:#4ade80} .hcard.bad .v{color:#f87171} .hcard.warnv .v{color:#fbbf24}
+
+  /* ---------- parent (phone-ish) ---------- */
+  #view-parent{background:linear-gradient(180deg,#eef2ff,#f6f7fb); min-height:100vh; padding:26px 16px 60px}
+  .phone{max-width:430px; margin:0 auto; background:#fff; border-radius:24px; border:1px solid var(--line); box-shadow:0 20px 50px rgba(15,23,42,.12); overflow:hidden}
+  .ph-head{background:linear-gradient(140deg,var(--brand),#6d28d9); color:#fff; padding:20px 20px 16px}
+  .ph-head .sch{font-size:.74rem; text-transform:uppercase; letter-spacing:.12em; color:#c7d2fe}
+  .ph-head h3{margin:5px 0 0; font-size:1.15rem}
+  .kids{display:flex; gap:9px; padding:14px 16px; border-bottom:1px solid var(--line); overflow-x:auto}
+  .kid{border:1.5px solid var(--line); background:#fff; border-radius:999px; padding:8px 15px; font-size:.83rem; font-weight:700; color:var(--ink2); white-space:nowrap}
+  .kid.on{background:var(--brand); border-color:var(--brand); color:#fff}
+  .res{display:flex; align-items:center; gap:13px; padding:14px 16px; border-bottom:1px solid #f1f5f9; width:100%; background:#fff; border-left:none; border-right:none; border-top:none; text-align:left}
+  .res:hover{background:#f8fafc}
+  .res .sc{width:46px; height:46px; border-radius:12px; background:var(--brand-soft); color:var(--brand); display:grid; place-items:center; font-weight:800; font-size:.9rem; flex:none}
+  .res .t{flex:1}
+  .res .t b{display:block; font-size:.9rem}
+  .res .t span{font-size:.76rem; color:var(--muted)}
+  .ph-foot{padding:14px 16px 20px; font-size:.74rem; color:var(--muted); line-height:1.6; text-align:center}
+  .detail{padding:20px}
+  .detail .big{font-size:2.6rem; font-weight:800; letter-spacing:-1.5px}
+  .kv{display:flex; justify-content:space-between; padding:11px 0; border-bottom:1px solid #f1f5f9; font-size:.88rem}
+  .kv:last-child{border:none}
+  .kv span{color:var(--muted)}
+
+  @media (max-width:900px){
+    .portal{grid-template-columns:1fr}
+    .sidenav{display:flex; gap:6px; overflow-x:auto; border-right:none; border-bottom:1px solid var(--line); padding:10px}
+    .sidenav .who{display:none}
+    .navbtn{width:auto; white-space:nowrap; margin-bottom:0}
+    .exam-body{grid-template-columns:1fr}
+    .navi{border-right:none; border-bottom:1px solid var(--line)}
+    .qpane{padding:20px 16px 34px}
+    .bar{grid-template-columns:1fr 100px 40px}
+  }
+</style>
+</head>
+<body>
+
+<!-- ==================== HOME ==================== -->
+<section class="view active" id="view-home">
+  <div class="hero">
+    <div class="badge">Interactive demo · sample data</div>
+    <h1>School CBT Platform</h1>
+    <p>Teachers build exams in the cloud. Students write them in the computer lab with <b>no internet needed</b>. Results sync up, teachers review and release, parents see them on their phones.</p>
+  </div>
+
+  <div class="roles">
+    <button class="role" onclick="openStudent()">
+      <span class="where">School lab · offline</span>
+      <div class="ico">🎓</div>
+      <h3>Student Exam Client</h3>
+      <p>Type a student code and exam key, answer questions, never lose your work. Try the full exam flow.</p>
+    </button>
+    <button class="role" onclick="go('teacher')">
+      <span class="where">Cloud</span>
+      <div class="ico">📚</div>
+      <h3>Teacher Portal</h3>
+      <p>Question bank, Word/Excel import with preview, exam builder, marking, review and release.</p>
+    </button>
+    <button class="role" onclick="go('console')">
+      <span class="where">School lab · offline</span>
+      <div class="ico">📋</div>
+      <h3>Invigilator Console</h3>
+      <p>Readiness check, exam key, live seat progress, extra time, session reset, server health.</p>
+    </button>
+    <button class="role" onclick="go('admin')">
+      <span class="where">Cloud</span>
+      <div class="ico">🏫</div>
+      <h3>School Admin</h3>
+      <p>Students, guardians, codes, sittings calendar, invitations, results awaiting release.</p>
+    </button>
+    <button class="role" onclick="go('parent')">
+      <span class="where">Cloud · phone</span>
+      <div class="ico">👨‍👩‍👧</div>
+      <h3>Parent Portal</h3>
+      <p>One sign-in for every child. Released results only, with scores, grades and trends.</p>
+    </button>
+    <button class="role" onclick="go('owner')">
+      <span class="where">Cloud</span>
+      <div class="ico">🖥️</div>
+      <h3>Platform Owner</h3>
+      <p>Schools and licences, every lab server's heartbeat, disk, backup and clock health.</p>
+    </button>
+  </div>
+
+  <div class="arch">
+    <h2 class="sec">How the two halves fit together</h2>
+    <pre>TEACHERS / ADMIN / PARENTS  (any device, internet)
+                │  HTTPS
+                ▼
+┌──────────────────────────────────────────────┐
+│ CLOUD                                        │
+│   Next.js portals  ◄──►  NestJS API          │
+│                    PostgreSQL · Redis · S3    │
+└──────────────▲───────────────────────────────┘
+               │  HTTPS, outbound from school only
+               │   ▼ exam packs + roster   ▲ results
+┌──────────────┴───────────────────────────────┐
+│ SCHOOL LAB  (works with no internet)         │
+│   Exam server PC (Windows service)           │
+│     NestJS · SQLite · static exam client     │
+│          ▲  plain HTTP over the lab LAN      │
+│   Lab PCs: browser only, nothing installed   │
+└──────────────────────────────────────────────┘</pre>
+    <p class="muted" style="font-size:.82rem">Demo built from the specification documents (PRD, data model, API &amp; sync spec, build spec). Sample school: <b>Graceland College (GRA)</b>. Nothing is saved or sent anywhere.</p>
+  </div>
+</section>
+
+<!-- ==================== STUDENT ==================== -->
+<section class="view" id="view-student">
+  <!-- login -->
+  <div id="st-login" class="loginbox">
+    <div class="topbar" style="position:static; border-radius:12px; margin-bottom:16px; border:1px solid var(--line)">
+      <span style="font-size:1.2rem">🏫</span>
+      <div><h1>Graceland College</h1><div class="sub">Exam Server · seat PC-12 · offline</div></div>
+      <div class="spacer"></div>
+      <button class="btn" onclick="go('home')">✕ Exit demo</button>
+    </div>
+    <div class="card">
+      <h3 style="margin:0 0 6px">Sign in to your exam</h3>
+      <p class="muted" style="font-size:.85rem; margin:0 0 18px">Enter the code on your slip and the exam key shown by the invigilator.</p>
+      <div class="hintbox">
+        <b>Demo credentials</b><br>
+        Student code: <span class="mono">GRA-7K2M9QXDG</span><br>
+        Exam key: <span class="mono">482913</span><br>
+        <span style="color:#6366f1">Try a typo (e.g. GRA-7K2M9QXDH) — the check character catches it before any lookup.</span>
+      </div>
+      <div class="field">
+        <label>Student code</label>
+        <input id="f-code" placeholder="GRA-XXXXXXXXX" autocomplete="off" spellcheck="false" />
+        <div class="errmsg" id="e-code"></div>
+      </div>
+      <div class="field">
+        <label>Exam key (6 digits)</label>
+        <input id="f-key" placeholder="••••••" inputmode="numeric" maxlength="6" autocomplete="off" />
+        <div class="errmsg" id="e-key"></div>
+      </div>
+      <div class="field">
+        <label>Screen style (demo)</label>
+        <div style="display:flex; gap:8px">
+          <button class="btn" id="btn-sec" onclick="setLayout('secondary')" style="flex:1; border-color:var(--brand); background:var(--brand-soft); color:var(--brand)">Secondary (JSS 2)</button>
+          <button class="btn" id="btn-pri" onclick="setLayout('primary')" style="flex:1">Primary (Primary 4)</button>
+        </div>
+      </div>
+      <button class="btn primary big" style="width:100%; margin-top:6px" onclick="attemptLogin()">Continue</button>
+      <p class="muted" style="font-size:.75rem; margin:14px 0 0">Demo only: 5 wrong attempts lock the seat for a minute (US-10.1) — the counter resets on success.</p>
+    </div>
+  </div>
+
+  <!-- instructions -->
+  <div id="st-start" style="display:none">
+    <div class="exam-top">
+      <span class="school">Graceland College</span>
+      <span class="exam">Mathematics · First Term Exam</span>
+      <div class="spacer"></div>
+      <button class="btn ghostdark" onclick="go('home')">✕ Exit demo</button>
+    </div>
+    <div class="steps">
+      <div class="card">
+        <span class="chip brand">Before you begin</span>
+        <h2 style="margin:14px 0 4px">Tunde Bello · JSS 2 Gold</h2>
+        <p class="muted" style="font-size:.88rem; margin:0 0 18px">Check that this is you. If it is not, tell the invigilator.</p>
+        <div class="kv"><span>Subject</span><b>Mathematics</b></div>
+        <div class="kv"><span>Questions</span><b>10 (demo paper)</b></div>
+        <div class="kv"><span>Total marks</span><b>12</b></div>
+        <div class="kv"><span>Duration</span><b>60 minutes</b></div>
+        <div class="kv"><span>Your answers</span><b>Saved automatically as you work</b></div>
+        <p style="font-size:.9rem; line-height:1.65; margin:18px 0 6px"><b>Instructions</b></p>
+        <p class="muted" style="font-size:.87rem; line-height:1.7; margin:0">Answer all questions. You may flag a question and come back to it. The timer starts when you press <b>Start</b>. If the computer restarts, sign in again with the same code — your answers and remaining time are restored.</p>
+        <div style="display:flex; gap:12px; margin-top:24px">
+          <button class="btn primary big" onclick="startExam()">Start exam</button>
+          <button class="btn big" onclick="go('home')">Not my exam</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- exam -->
+  <div id="st-exam" style="display:none">
+    <div class="exam-top">
+      <div>
+        <div class="school">Graceland College</div>
+        <div class="exam">Mathematics · First Term Exam · JSS 2 Gold</div>
+      </div>
+      <div class="spacer"></div>
+      <div class="save-state" id="save-state"><span class="dot"></span><span id="save-text">Saved · just now</span></div>
+      <div class="timer" id="timer">60:00</div>
+      <button class="btn ghostdark" onclick="go('home')">✕</button>
+    </div>
+    <div class="exam-body" id="exam-body">
+      <aside class="navi" id="navi">
+        <h4>Questions</h4>
+        <div class="navgrid" id="navgrid"></div>
+        <div class="legend">
+          <div><i class="a"></i> Answered <span id="lg-ans">(0)</span></div>
+          <div><i></i> Not answered <span id="lg-un"></span></div>
+          <div><i class="f"></i> Flagged for review <span id="lg-fl"></span></div>
+          <div style="margin-top:8px; color:#94a3b8">Keys: 1–6 answer · ← → move · F flag</div>
+        </div>
+        <button class="btn primary" style="width:100%; margin-top:16px" onclick="openReview()">Review &amp; submit</button>
+      </aside>
+      <main class="qpane" id="qpane"></main>
+    </div>
+  </div>
+
+  <!-- review -->
+  <div id="st-review" style="display:none">
+    <div class="exam-top">
+      <span class="school">Review your answers</span>
+      <div class="spacer"></div>
+      <button class="btn ghostdark" onclick="closeReview()">Back to exam</button>
+    </div>
+    <div class="steps">
+      <div class="card">
+        <div style="display:flex; gap:10px; align-items:center; margin-bottom:6px; flex-wrap:wrap">
+          <span class="chip ok" id="rv-ans">0 answered</span>
+          <span class="chip warn" id="rv-un">0 unanswered</span>
+          <span class="chip mute" id="rv-fl">0 flagged</span>
+        </div>
+        <p class="muted" style="font-size:.85rem">Select a question to jump back to it.</p>
+        <div id="rv-list"></div>
+        <div style="display:flex; gap:12px; margin-top:22px">
+          <button class="btn primary big" onclick="askSubmit()">Submit exam</button>
+          <button class="btn big" onclick="closeReview()">Keep working</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- done -->
+  <div id="st-done" style="display:none">
+    <div class="done-wrap">
+      <div style="font-size:3rem">✅</div>
+      <h2 style="margin:10px 0 6px">Your answers have been submitted</h2>
+      <p class="muted" style="font-size:.92rem; line-height:1.7">Submitted at <b id="done-time">09:41</b> · Mathematics, First Term Exam.<br>Leave your seat and tell the invigilator you are finished.</p>
+      <div id="scoreblock" style="display:none">
+        <div class="scorecircle" id="scorecircle" style="--p:0"><div class="inner"><div><b id="score-n">0</b><span id="score-l">0 / 12</span></div></div></div>
+        <div><span class="chip brand" id="score-grade">Grade —</span></div>
+        <p class="muted" style="font-size:.8rem; margin-top:10px">Score shown because the teacher enabled “show score to student” (US-10.10).</p>
+      </div>
+      <p class="muted" style="font-size:.8rem; margin-top:18px">Your teacher reviews the class results and releases them to your parents.</p>
+      <div style="display:flex; gap:10px; justify-content:center; margin-top:22px">
+        <button class="btn" onclick="resetStudentDemo()">Take the demo again</button>
+        <button class="btn primary" onclick="go('home')">Back to home</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- submit modal -->
+  <div class="modal-back" id="submit-modal">
+    <div class="modal">
+      <h3>Submit your exam?</h3>
+      <p id="submit-msg">You have answered every question.</p>
+      <div class="row">
+        <button class="btn" onclick="closeSubmit()">Go back</button>
+        <button class="btn primary" onclick="doSubmit()">Yes, submit</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== TEACHER ==================== -->
+<section class="view" id="view-teacher">
+  <div class="topbar">
+    <span style="font-size:1.2rem">📚</span>
+    <div><h1>Teacher Portal</h1><div class="sub">Ada Okafor · Graceland College · assigned: JSS 2 &amp; JSS 3 Mathematics</div></div>
+    <div class="spacer"></div>
+    <button class="btn" onclick="go('home')">⌂ Home</button>
+  </div>
+  <div class="portal">
+    <nav class="sidenav">
+      <div class="who"><b>Ada Okafor</b><span>Teacher</span></div>
+      <button class="navbtn on" data-tpane="t-dash" onclick="teacherPane('t-dash',this)">🏠 Dashboard</button>
+      <button class="navbtn" data-tpane="t-bank" onclick="teacherPane('t-bank',this)">🗂️ Question bank</button>
+      <button class="navbtn" data-tpane="t-import" onclick="teacherPane('t-import',this)">📥 Import from Word/Excel</button>
+      <button class="navbtn" data-tpane="t-exam" onclick="teacherPane('t-exam',this)">📝 Exam builder</button>
+      <button class="navbtn" data-tpane="t-results" onclick="teacherPane('t-results',this)">✅ Results<span class="n">12</span></button>
+    </nav>
+    <div class="wrap" style="padding-top:24px">
+
+      <!-- dashboard -->
+      <div class="pane on" id="t-dash">
+        <div class="panehead"><h2>Dashboard</h2><span class="sub">Wednesday, 21 October 2026</span></div>
+        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr))">
+          <div class="card stat"><div class="n">3</div><div class="l">Exams scheduled this week</div></div>
+          <div class="card stat"><div class="n">12</div><div class="l">Results waiting for review</div></div>
+          <div class="card stat"><div class="n">412</div><div class="l">Questions in my bank</div></div>
+          <div class="card stat"><div class="n">1</div><div class="l">Exam pack ready to publish</div></div>
+        </div>
+        <h2 class="sec">Recent activity</h2>
+        <div class="card">
+          <table>
+            <tr><td><b>Excel import</b> — 38 questions added as drafts</td><td class="muted" style="text-align:right">Today, 08:12</td></tr>
+            <tr><td><b>JSS 2 Mathematics</b> — pack version 2 built after key correction</td><td class="muted" style="text-align:right">Yesterday</td></tr>
+            <tr><td><b>Results synced</b> — JSS 2 Gold, 31 students from the lab server</td><td class="muted" style="text-align:right">Yesterday</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- question bank -->
+      <div class="pane" id="t-bank">
+        <div class="panehead">
+          <h2>Question bank</h2>
+          <span class="sub">412 questions · my subjects only (BR-19)</span>
+          <div class="spacer"></div>
+          <button class="btn">＋ New question</button>
+          <button class="btn primary" onclick="teacherPane('t-import')">Import</button>
+        </div>
+        <div class="card">
+          <table>
+            <thead><tr><th>Question</th><th>Type</th><th>Subject</th><th>Topic</th><th>Marks</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td>What is 2 + 2?</td><td>Single choice</td><td>Mathematics</td><td>Addition</td><td>1</td><td><span class="chip ok">Approved</span></td></tr>
+              <tr><td>Which of these are prime numbers?</td><td>Multiple choice</td><td>Mathematics</td><td>Numbers</td><td>2</td><td><span class="chip ok">Approved</span></td></tr>
+              <tr><td>The sun rises in the west.</td><td>True / False</td><td>Basic Science</td><td>Space</td><td>1</td><td><span class="chip ok">Approved</span></td></tr>
+              <tr><td>The capital of Nigeria is ____.</td><td>Fill in the blank</td><td>Social Studies</td><td>Geography</td><td>1</td><td><span class="chip ok">Approved</span></td></tr>
+              <tr><td>Factorise x² − 9</td><td>Fill in the blank</td><td>Mathematics</td><td>Algebra</td><td>2</td><td><span class="chip warn">Draft</span></td></tr>
+              <tr><td>3² + 4² equals ____.</td><td>Fill in the blank</td><td>Mathematics</td><td>Pythagoras</td><td>1</td><td><span class="chip mute">Draft · imported today</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="muted" style="font-size:.8rem; margin-top:10px">Approved questions are immutable — editing one creates a new version that supersedes it (BR-12).</p>
+      </div>
+
+      <!-- import -->
+      <div class="pane" id="t-import">
+        <div class="panehead"><h2>Import from Word or Excel</h2><span class="sub">term-2-mathematics-questions.xlsx · 41 rows detected</span></div>
+        <div class="stepbar">
+          <span class="step done">1 · Upload</span> →
+          <span class="step on">2 · Preview &amp; fix</span> →
+          <span class="step">3 · Confirm</span>
+        </div>
+        <div class="card" id="import-card">
+          <div style="padding:14px 16px; display:flex; gap:10px; align-items:center; border-bottom:1px solid var(--line); flex-wrap:wrap">
+            <span class="chip ok">38 ready</span><span class="chip warn">2 warnings</span><span class="chip bad">1 error</span>
+            <div class="spacer"></div>
+            <button class="btn primary" onclick="confirmImport()">Confirm import</button>
+          </div>
+          <div style="overflow-x:auto">
+          <table>
+            <thead><tr><th>#</th><th>Question</th><th>Type</th><th>Correct</th><th>Row status</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>What is 2 + 2?</td><td>single_choice</td><td class="mono">B</td><td><span class="chip ok">ok</span></td></tr>
+              <tr><td>2</td><td>Which of these are prime numbers?</td><td>multi_choice</td><td class="mono">A,C</td><td><span class="chip ok">ok</span></td></tr>
+              <tr><td>3</td><td>The sun rises in the west.</td><td>true_false</td><td class="mono">False</td><td><span class="chip ok">ok</span></td></tr>
+              <tr><td>4</td><td>The capital of Nigeria is ____.</td><td>fill_blank</td><td class="mono">Abuja | FCT</td><td><span class="chip ok">ok</span></td></tr>
+              <tr><td>5</td><td>Which of these are prime numbers?</td><td>multi_choice</td><td class="mono">A,C</td><td><span class="chip warn">warning · likely duplicate of question 2</span></td></tr>
+              <tr><td>6</td><td>Calculate the area of a circle with radius 7 cm.</td><td>single_choice</td><td class="mono">—</td><td><span class="chip bad">error · MISSING_ANSWER</span></td></tr>
+              <tr><td>7</td><td>3² + 4² equals ____.</td><td>fill_blank</td><td class="mono">25</td><td><span class="chip ok">ok</span></td></tr>
+              <tr><td>8</td><td>The largest planet is ____.</td><td>fill_blank</td><td class="mono">Jupiter</td><td><span class="chip warn">warning · likely duplicate in bank</span></td></tr>
+            </tbody>
+          </table>
+          </div>
+          <div style="padding:12px 16px; font-size:.78rem; color:var(--muted); border-top:1px solid var(--line)">
+            Showing 8 of 41 rows · every row can be edited, skipped or accepted before anything is created (US-6.4). Imported questions enter the bank as <b>drafts</b>, never straight into an exam (US-6.5).
+          </div>
+        </div>
+      </div>
+
+      <!-- exam builder -->
+      <div class="pane" id="t-exam">
+        <div class="panehead">
+          <h2>Exam builder</h2>
+          <span class="sub">JSS 2 Mathematics · First Term Exam</span>
+          <div class="spacer"></div>
+          <button class="btn primary" id="publish-btn" onclick="publishPack()">Publish pack</button>
+        </div>
+        <div class="grid" style="grid-template-columns:1.6fr 1fr">
+          <div class="card">
+            <table>
+              <thead><tr><th>#</th><th>Question</th><th>Type</th><th>Marks</th></tr></thead>
+              <tbody>
+                <tr><td>1</td><td>What is 2 + 2?</td><td>Single choice</td><td>1</td></tr>
+                <tr><td>2</td><td>Which of these is a prime number?</td><td>Single choice</td><td>1</td></tr>
+                <tr><td>3</td><td>The sun rises in the west.</td><td>True / False</td><td>1</td></tr>
+                <tr><td>4</td><td>The capital of Nigeria is ____.</td><td>Fill in the blank</td><td>1</td></tr>
+                <tr><td>5</td><td>Which of these are even numbers?</td><td>Multiple choice</td><td>2</td></tr>
+                <tr><td>6</td><td>What is 7 × 8?</td><td>Single choice</td><td>1</td></tr>
+                <tr><td>7</td><td>The angles in a triangle add up to…</td><td>Single choice</td><td>1</td></tr>
+                <tr><td>8</td><td>3² + 4² = ____</td><td>Fill in the blank</td><td>2</td></tr>
+                <tr><td>9</td><td>Water boils at 100 °C at sea level.</td><td>True / False</td><td>1</td></tr>
+                <tr><td>10</td><td>The chemical symbol for gold is…</td><td>Single choice</td><td>1</td></tr>
+              </tbody>
+              <tfoot><tr><td colspan="3" style="text-align:right; font-weight:700">Total · 10 questions</td><td style="font-weight:800">12</td></tr></tfoot>
+            </table>
+          </div>
+          <div>
+            <div class="card pad">
+              <h3 style="margin:0 0 12px; font-size:.95rem">Exam settings</h3>
+              <div class="kv"><span>Duration</span><b>60 minutes</b></div>
+              <div class="kv"><span>Classes</span><b>JSS 2 Gold</b></div>
+              <div class="kv"><span>Shuffle questions</span><b>On</b></div>
+              <div class="kv"><span>Shuffle options</span><b>On</b></div>
+              <div class="kv"><span>Show score to student</span><b>Off</b></div>
+              <div class="kv"><span>Sitting</span><b>Tue 27 Oct, 08:00–10:00</b></div>
+            </div>
+            <div class="card pad" style="margin-top:14px">
+              <h3 style="margin:0 0 10px; font-size:.95rem">Pack status</h3>
+              <div class="packflow" id="packflow">
+                <span class="packstep on">Draft</span>
+                <span class="packstep" id="ps-freeze">Freeze (T−24h)</span>
+                <span class="packstep" id="ps-build">Pack built</span>
+                <span class="packstep" id="ps-verify">School server verified</span>
+              </div>
+              <p class="muted" style="font-size:.78rem; line-height:1.6; margin:12px 0 0">Publishing signs the questions and the encrypted answer key into a pack the lab server downloads and verifies (US-7.6). Editing after the freeze creates a new pack version (BR-11).</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- results -->
+      <div class="pane" id="t-results">
+        <div class="panehead">
+          <h2>Results</h2>
+          <span class="sub">JSS 2 Mathematics · First Term Exam · JSS 2 Gold · synced yesterday 16:42</span>
+          <div class="spacer"></div>
+          <button class="btn">⬇ Export Excel / PDF</button>
+          <button class="btn primary" id="release-btn" onclick="releaseResults()">Release to parents</button>
+        </div>
+        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); margin-bottom:16px">
+          <div class="card stat"><div class="n">72.5%</div><div class="l">Class average</div></div>
+          <div class="card stat"><div class="n">100%</div><div class="l">Highest</div></div>
+          <div class="card stat"><div class="n">33.3%</div><div class="l">Lowest</div></div>
+          <div class="card stat"><div class="n">90%</div><div class="l">Pass rate (≥40%)</div></div>
+        </div>
+        <div class="card">
+          <div style="padding:14px 16px; border-bottom:1px solid var(--line)">
+            <b style="font-size:.85rem">Question statistics</b>
+            <div class="bars" style="margin-top:12px">
+              <div class="bar"><span>Q1 · What is 2 + 2?</span><div class="track"><div class="fill" style="width:96%"></div></div><b>96%</b></div>
+              <div class="bar"><span>Q5 · Even numbers (multi)</span><div class="track"><div class="fill" style="width:61%"></div></div><b>61%</b></div>
+              <div class="bar"><span>Q10 · Symbol for gold</span><div class="track"><div class="fill" style="width:58%"></div></div><b>58%</b></div>
+            </div>
+          </div>
+          <div style="overflow-x:auto">
+          <table>
+            <thead><tr><th>Student</th><th>Score</th><th>Percent</th><th>Grade</th><th>Status</th></tr></thead>
+            <tbody id="results-body">
+              <tr><td>Tunde Bello</td><td>11 / 12</td><td>91.7%</td><td>A</td><td class="rst"><span class="chip mute">draft</span></td></tr>
+              <tr><td>Chioma Eze</td><td>12 / 12</td><td>100%</td><td>A</td><td class="rst"><span class="chip mute">draft</span></td></tr>
+              <tr><td>Ahmad Yusuf</td><td>7 / 12</td><td>58.3%</td><td>C</td><td class="rst"><span class="chip mute">draft</span></td></tr>
+              <tr><td>Grace Okon</td><td>9 / 12</td><td>75%</td><td>A</td><td class="rst"><span class="chip mute">draft</span></td></tr>
+              <tr><td>Emeka Nwosu</td><td>5 / 12</td><td>41.7%</td><td>E</td><td class="rst"><span class="chip mute">draft</span></td></tr>
+              <tr><td>Zainab Ali</td><td>10 / 12</td><td>83.3%</td><td>A</td><td class="rst"><span class="chip mute">draft</span></td></tr>
+              <tr><td>Daniel Oke</td><td>8 / 12</td><td>66.7%</td><td>B</td><td class="rst"><span class="chip mute">draft</span></td></tr>
+              <tr><td>Blessing Ade</td><td>12 / 12</td><td>100%</td><td>A</td><td class="rst"><span class="chip mute">draft</span></td></tr>
+              <tr><td>Samuel Etim</td><td>4 / 12</td><td>33.3%</td><td>F</td><td class="rst"><span class="chip mute">draft</span></td></tr>
+              <tr><td>Halima Sani</td><td>9 / 12</td><td>75%</td><td>A</td><td class="rst"><span class="chip mute">draft</span></td></tr>
+            </tbody>
+          </table>
+          </div>
+          <div style="padding:12px 16px; font-size:.78rem; color:var(--muted); border-top:1px solid var(--line)">
+            Results start as <b>draft</b>. Only <b>reviewed</b> results can be released, and only released results are visible to parents (BR-14). Releasing notifies every linked parent — without the scores in the message (BR-21).
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ==================== INVIGILATOR CONSOLE ==================== -->
+<section class="view" id="view-console">
+  <div class="topbar dark">
+    <span style="font-size:1.2rem">📋</span>
+    <div><h1>Invigilator Console</h1><div class="sub">SchoolCBT 1.0.3 · server clock 07:58 · synced 4 min ago</div></div>
+    <div class="spacer"></div>
+    <span class="chip ok">● Online</span>
+    <button class="btn ghostdark" onclick="go('home')">⌂ Home</button>
+  </div>
+  <div class="wrap">
+    <div class="grid" style="grid-template-columns:1fr 1.35fr">
+      <div>
+        <h2 class="sec" style="margin-top:0">Readiness · JSS 2 Mathematics</h2>
+        <div class="card pad">
+          <div class="ready-list">
+            <div class="ready"><span class="tick" style="background:#14532d; color:#4ade80">✓</span><div><b>Pack loaded</b><span>Exam pack version 2 is loaded and the signature checks out.</span></div></div>
+            <div class="ready"><span class="tick" style="background:#14532d; color:#4ade80">✓</span><div><b>Roster current</b><span>All 31 students in JSS 2 Gold have active codes. Last sync 4 minutes ago.</span></div></div>
+            <div class="ready"><span class="tick" style="background:#14532d; color:#4ade80">✓</span><div><b>Disk space</b><span>41 GB free.</span></div></div>
+            <div class="ready"><span class="tick" style="background:#14532d; color:#4ade80">✓</span><div><b>Clock</b><span>Matches the cloud (offset 0.8 s).</span></div></div>
+            <div class="ready"><span class="tick" style="background:#14532d; color:#4ade80">✓</span><div><b>Backup</b><span>Last backup 10 hours ago, checksum verified.</span></div></div>
+          </div>
+          <button class="btn primary big" id="open-btn" style="width:100%; margin-top:16px" onclick="openSitting()">Open sitting &amp; show exam key</button>
+          <button class="btn ghostdark" id="close-btn" style="width:100%; margin-top:10px; display:none" onclick="closeSitting()">Close sitting (submits everyone)</button>
+        </div>
+
+        <div id="keybox" style="display:none; margin-top:14px">
+          <div class="keybox">
+            <div class="lbl">Exam key</div>
+            <div class="k">482913</div>
+            <div class="note">Students need <b>their code</b> + <b>this key</b>. Read it out — it changes every sitting.</div>
+          </div>
+        </div>
+
+        <h2 class="sec">Server health</h2>
+        <div class="healthgrid">
+          <div class="hcard good"><div class="v">41 GB</div><div class="l">Free disk</div></div>
+          <div class="hcard good"><div class="v">OK</div><div class="l">Clock</div></div>
+          <div class="hcard good"><div class="v">10 h</div><div class="l">Last backup</div></div>
+          <div class="hcard good"><div class="v">0</div><div class="l">Outbox pending</div></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="panehead">
+          <h2 class="sec" style="margin:0">Live seats</h2>
+          <div class="spacer"></div>
+          <span class="chip info" id="seat-summary">Not started</span>
+        </div>
+        <div class="seats" id="seats"></div>
+        <div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap">
+          <button class="btn ghostdark" onclick="toast('Extra time: +5 minutes for PC-12, reason “started late” (US-9.5)')">+5 min to PC-12</button>
+          <button class="btn ghostdark" onclick="toast('Session reset on PC-07 · answers kept · written to the audit log (US-9.6)')">Reset PC-07 session</button>
+          <button class="btn ghostdark" onclick="toast('Sync now — no internet needed during the exam (US-15.1)')">Sync now</button>
+        </div>
+        <p class="muted" style="font-size:.78rem; line-height:1.6; margin-top:14px; color:#64748b">Progress updates arrive over the local WebSocket within 3 seconds of a save (US-9.3). Seat “offline” means no contact for 30 seconds.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== ADMIN ==================== -->
+<section class="view" id="view-admin">
+  <div class="topbar">
+    <span style="font-size:1.2rem">🏫</span>
+    <div><h1>School Admin</h1><div class="sub">Graceland College · Mrs A. Balogun</div></div>
+    <div class="spacer"></div>
+    <span class="chip ok">Server healthy · synced 4 min ago</span>
+    <button class="btn" onclick="go('home')">⌂ Home</button>
+  </div>
+  <div class="wrap">
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
+      <div class="card stat"><div class="n">2</div><div class="l">Upcoming sittings</div></div>
+      <div class="card stat"><div class="n">31</div><div class="l">Results awaiting release</div></div>
+      <div class="card stat"><div class="n">7</div><div class="l">Invitations pending</div></div>
+      <div class="card stat"><div class="n">618</div><div class="l">Students registered</div></div>
+    </div>
+
+    <h2 class="sec">Sittings calendar</h2>
+    <div class="card">
+      <table>
+        <thead><tr><th>Exam</th><th>Class</th><th>When</th><th>Lab</th><th>Readiness</th></tr></thead>
+        <tbody>
+          <tr><td><b>JSS 2 Mathematics</b> · First Term Exam</td><td>JSS 2 Gold</td><td>Tue 27 Oct, 08:00–10:00</td><td>Lab 1</td><td><span class="chip ok">Pack loaded &amp; verified</span></td></tr>
+          <tr><td><b>JSS 2 Basic Science</b> · First Term Exam</td><td>JSS 2 Gold</td><td>Wed 28 Oct, 08:00–09:30</td><td>Lab 1</td><td><span class="chip warn">Pack not downloaded yet</span></td></tr>
+          <tr><td><b>Primary 4 English</b> · CA 2</td><td>Primary 4 Blue</td><td>Thu 29 Oct, 10:00–11:00</td><td>Lab 1</td><td><span class="chip mute">Scheduled</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 class="sec">Students &amp; access codes</h2>
+    <div class="card">
+      <table>
+        <thead><tr><th>Student</th><th>Class</th><th>Admission no.</th><th>Code status</th><th>Guardian</th></tr></thead>
+        <tbody>
+          <tr><td>Tunde Bello</td><td>JSS 2 Gold</td><td class="mono">GRA/2023/0412</td><td><span class="chip ok">Active</span></td><td>Mrs Adeyemi · linked</td></tr>
+          <tr><td>Ife Bello</td><td>Primary 4 Blue</td><td class="mono">GRA/2025/0871</td><td><span class="chip ok">Active</span></td><td>Mrs Adeyemi · linked</td></tr>
+          <tr><td>Chioma Eze</td><td>JSS 2 Gold</td><td class="mono">GRA/2023/0418</td><td><span class="chip ok">Active</span></td><td>Mr Eze · linked</td></tr>
+          <tr><td>Samuel Etim</td><td>JSS 2 Gold</td><td class="mono">GRA/2023/0433</td><td><span class="chip warn">Reissued 12 Oct</span></td><td>Mrs Etim · linked</td></tr>
+        </tbody>
+      </table>
+      <div style="padding:12px 16px; border-top:1px solid var(--line); display:flex; gap:10px">
+        <button class="btn" onclick="toast('Code sheet PDF generated for JSS 2 Gold · 31 slips · audit logged (US-4.3)')">Print code sheet (PDF)</button>
+        <button class="btn" onclick="toast('Invite sent by WhatsApp to 3 guardians · monthly SMS cap: 118 of 500 used')">Invite guardians</button>
+      </div>
+    </div>
+
+    <h2 class="sec">Results awaiting action</h2>
+    <div class="card">
+      <table>
+        <thead><tr><th>Exam</th><th>Class</th><th>State</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>JSS 2 Mathematics · First Term Exam</td><td>JSS 2 Gold</td><td><span class="chip warn">31 draft · not reviewed</span></td><td style="text-align:right"><button class="btn" onclick="go('teacher')">Open in teacher portal →</button></td></tr>
+          <tr><td>JSS 3 English · First Term Exam</td><td>JSS 3 Blue</td><td><span class="chip info">Reviewed · ready to release</span></td><td style="text-align:right"><button class="btn primary" onclick="toast('28 results released · 24 parent notifications queued (BR-14, BR-21)')">Release</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== PARENT ==================== -->
+<section class="view" id="view-parent">
+  <div style="max-width:430px; margin:0 auto 14px; display:flex; align-items:center; gap:12px">
+    <button class="btn" onclick="go('home')">⌂ Home</button>
+    <div class="muted" style="font-size:.82rem">Parent portal · signed in as Mrs Adeyemi</div>
+  </div>
+  <div class="phone">
+    <div class="ph-head">
+      <div class="sch">Graceland College</div>
+      <h3 id="ph-title">Tunde Bello · JSS 2 Gold</h3>
+    </div>
+    <div class="kids">
+      <button class="kid on" id="kid0" onclick="pickKid(0)">Tunde Bello</button>
+      <button class="kid" id="kid1" onclick="pickKid(1)">Ife Bello</button>
+    </div>
+    <div id="kid-results">
+      <button class="res" onclick="openResult('Mathematics, First Term Exam','11 / 12','91.7%','A','72.5%','27 Oct 2026','updated')">
+        <div class="sc">A</div>
+        <div class="t"><b>Mathematics · First Term Exam</b><span>27 Oct 2026 · class average 72.5%</span></div>
+        <span class="chip warn">Updated</span>
+      </button>
+      <button class="res" onclick="openResult('Basic Science · First Term Exam','34 / 40','85%','A','61.2%','24 Oct 2026','')">
+        <div class="sc">A</div>
+        <div class="t"><b>Basic Science · First Term Exam</b><span>24 Oct 2026 · class average 61.2%</span></div>
+        <span class="chip ok">Released</span>
+      </button>
+      <button class="res" onclick="openResult('English Language · First Term Exam','31 / 40','77.5%','A','58.9%','24 Oct 2026','')">
+        <div class="sc">A</div>
+        <div class="t"><b>English Language · First Term Exam</b><span>24 Oct 2026 · class average 58.9%</span></div>
+        <span class="chip ok">Released</span>
+      </button>
+      <button class="res" onclick="openResult('Social Studies · First Term Exam','26 / 40','65%','B','60.1%','20 Oct 2026','')">
+        <div class="sc">B</div>
+        <div class="t"><b>Social Studies · First Term Exam</b><span>20 Oct 2026 · class average 60.1%</span></div>
+        <span class="chip ok">Released</span>
+      </button>
+      <div class="ph-foot">One login covers every child you are linked to.<br>Only <b>released</b> results appear here.</div>
+    </div>
+    <div id="kid-empty" style="display:none; padding:40px 22px; text-align:center">
+      <div style="font-size:2rem">📭</div>
+      <b style="display:block; margin:10px 0 6px">No released results yet</b>
+      <p class="muted" style="font-size:.85rem; line-height:1.6">You will get a message the moment Ife's results are released. You can only see results the school has released.</p>
+    </div>
+    <div id="kid-detail" style="display:none">
+      <div class="detail">
+        <button class="btn" style="margin-bottom:16px" onclick="closeResult()">← All results</button>
+        <div class="muted" style="font-size:.78rem; text-transform:uppercase; letter-spacing:.1em" id="d-sub">Mathematics</div>
+        <div class="big" id="d-score">11 / 12</div>
+        <div style="display:flex; gap:8px; margin:8px 0 18px">
+          <span class="chip brand" id="d-pct">91.7%</span>
+          <span class="chip ok" id="d-grade">Grade A</span>
+          <span class="chip warn" id="d-upd" style="display:none">Updated after re-mark</span>
+        </div>
+        <div class="kv"><span>Class average</span><b id="d-avg">72.5%</b></div>
+        <div class="kv"><span>Date</span><b id="d-date">27 Oct 2026</b></div>
+        <div class="kv"><span>Status</span><b>Released</b></div>
+        <p class="muted" style="font-size:.76rem; line-height:1.6; margin-top:16px">Parents never see raw answers, other students' scores, or exam codes. A result withdrawn by the school shows “under review” instead of scores (US-12.7).</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== OWNER ==================== -->
+<section class="view" id="view-owner">
+  <div class="topbar">
+    <span style="font-size:1.2rem">🖥️</span>
+    <div><h1>Platform Owner</h1><div class="sub">Schools, licences and every lab server</div></div>
+    <div class="spacer"></div>
+    <span class="chip warn">1 server needs attention</span>
+    <button class="btn" onclick="go('home')">⌂ Home</button>
+  </div>
+  <div class="wrap">
+    <h2 class="sec" style="margin-top:0">Schools</h2>
+    <div class="card">
+      <table>
+        <thead><tr><th>School</th><th>Code</th><th>Plan</th><th>Students</th><th>Licence</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td><b>Graceland College</b></td><td class="mono">GRA</td><td>Standard</td><td>618 / 700</td><td>Expires 31 Jul 2027</td><td><span class="chip ok">Active</span></td></tr>
+          <tr><td><b>Fountain Academy</b></td><td class="mono">FNT</td><td>Standard</td><td>342 / 400</td><td>Expires 12 Dec 2026</td><td><span class="chip warn">Expires in 52 days</span></td></tr>
+          <tr><td><b>Little Stars Primary</b></td><td class="mono">LST</td><td>Trial</td><td>96 / 100</td><td>Expired 01 Oct 2026</td><td><span class="chip bad">Read-only</span></td></tr>
+        </tbody>
+      </table>
+      <div style="padding:12px 16px; border-top:1px solid var(--line); font-size:.78rem; color:var(--muted)">An expired licence makes the school read-only — exams already loaded on the lab server still run (US-1.3).</div>
+    </div>
+
+    <h2 class="sec">School servers (heartbeat)</h2>
+    <div class="card">
+      <table>
+        <thead><tr><th>Server</th><th>School</th><th>Version</th><th>Last heartbeat</th><th>Disk</th><th>Backup</th><th>Flags</th></tr></thead>
+        <tbody>
+          <tr><td>Lab server</td><td>Graceland College</td><td>1.0.3</td><td>2 min ago</td><td>41 GB free</td><td>10 h ago</td><td><span class="chip ok">Healthy</span></td></tr>
+          <tr><td>Main lab PC</td><td>Fountain Academy</td><td>1.0.3</td><td>18 min ago</td><td>3.2 GB free</td><td>3 days ago</td><td><span class="chip bad">LOW_DISK</span> <span class="chip warn">BACKUP_OLD</span></td></tr>
+          <tr><td>Lab server</td><td>Little Stars Primary</td><td>0.9.8</td><td>4 days ago</td><td>22 GB free</td><td>5 days ago</td><td><span class="chip bad">NO_HEARTBEAT_3D</span> <span class="chip mute">OLD_VERSION</span></td></tr>
+        </tbody>
+      </table>
+      <div style="padding:12px 16px; border-top:1px solid var(--line); font-size:.78rem; color:var(--muted)">Flags per US-1.5: no heartbeat for 3 days · free disk below 5 GB · backup older than 2 days · clock off by more than 2 minutes.</div>
+    </div>
+  </div>
+</section>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ tiny router ============ */
+var current = 'home';
+function go(id){
+  document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
+  var el = document.getElementById('view-' + id);
+  if(el) el.classList.add('active');
+  current = id;
+  window.scrollTo(0,0);
+  if(id !== 'console') stopSeats(); else startSeats();
+  if(id !== 'student') stopTimer();
+}
+function toast(msg){
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(function(){ t.classList.remove('show'); }, 3200);
+}
+
+/* ============ student exam ============ */
+var ALPHA = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+var DEMO_CODE = 'GRA7K2M9QXDG';
+var DEMO_KEY  = '482913';
+
+function normalise(raw){ return String(raw||'').toUpperCase().replace(/[\s-]/g,''); }
+function validCode(raw){
+  var s = normalise(raw);
+  if(s.length < 10) return false;
+  var body = s.slice(-9);            // 8 body chars + check char
+  if(s.slice(0, s.length - 9) !== 'GRA') return false;
+  var sum = 0;
+  for(var i=0;i<9;i++){
+    var v = ALPHA.indexOf(body[i]);
+    if(v < 0) return false;
+    sum += (i+1) * v;
+  }
+  return (sum % 31) === 0;
+}
+
+var loginTries = 0;
+function setLayout(mode){
+  priMode = (mode === 'primary');
+  document.getElementById('btn-sec').style.background = priMode ? '#fff' : 'var(--brand-soft)';
+  document.getElementById('btn-sec').style.borderColor = priMode ? 'var(--line)' : 'var(--brand)';
+  document.getElementById('btn-sec').style.color = priMode ? 'var(--ink)' : 'var(--brand)';
+  document.getElementById('btn-pri').style.background = priMode ? 'var(--brand-soft)' : '#fff';
+  document.getElementById('btn-pri').style.borderColor = priMode ? 'var(--brand)' : 'var(--line)';
+  document.getElementById('btn-pri').style.color = priMode ? 'var(--brand)' : 'var(--ink)';
+}
+
+function showErr(id, msg){
+  var e = document.getElementById(id);
+  if(msg){ e.textContent = msg; e.classList.add('show'); } else { e.classList.remove('show'); }
+}
+function attemptLogin(){
+  var code = document.getElementById('f-code');
+  var key  = document.getElementById('f-key');
+  showErr('e-code', null); showErr('e-key', null);
+  code.classList.remove('err'); key.classList.remove('err');
+
+  if(!validCode(code.value)){
+    code.classList.add('err');
+    showErr('e-code', "That code doesn't look right. Check it and try again. (CODE_FORMAT_INVALID — the check character failed, no lookup was done.)");
+    return;
+  }
+  if(normalise(code.value) !== DEMO_CODE){
+    code.classList.add('err');
+    showErr('e-code', "We can't find that code. Ask your teacher. (CODE_NOT_FOUND)");
+    return;
+  }
+  if(normalise(key.value) !== DEMO_KEY){
+    key.classList.add('err');
+    loginTries++;
+    if(loginTries >= 5){
+      showErr('e-key', 'Too many tries. Wait a minute. (SEAT_LOCKED)');
+      return;
+    }
+    showErr('e-key', 'The exam key is wrong. Ask the invigilator. (KEY_INVALID)');
+    return;
+  }
+  loginTries = 0;
+  document.getElementById('st-login').style.display = 'none';
+  document.getElementById('st-start').style.display = 'block';
+  window.scrollTo(0,0);
+}
+
+/* --- exam data --- */
+var QUESTIONS = [
+  {type:'single', marks:1, stem:'What is 2 + 2?', opts:['3','4','5','6'], answer:1},
+  {type:'single', marks:1, stem:'Which of these is a prime number?', opts:['9','15','17','21'], answer:2},
+  {type:'tf', marks:1, stem:'The sun rises in the west.', opts:['True','False'], answer:1},
+  {type:'fill', marks:1, stem:'The capital of Nigeria is ____.', accept:['abuja']},
+  {type:'multi', marks:2, stem:'Which of these are even numbers? (Select all that apply.)', opts:['2','3','4','7'], answer:[0,2]},
+  {type:'single', marks:1, stem:'What is 7 × 8?', opts:['54','56','58','64'], answer:1},
+  {type:'single', marks:1, stem:'The angles inside a triangle add up to…', opts:['90°','180°','270°','360°'], answer:1},
+  {type:'fill', marks:2, stem:'3² + 4² = ____', accept:['25']},
+  {type:'tf', marks:1, stem:'Water boils at 100 °C at sea level.', opts:['True','False'], answer:0},
+  {type:'single', marks:1, stem:'The chemical symbol for gold is…', opts:['Ag','Fe','Au','Gd'], answer:2}
+];
+var TOTAL_MARKS = QUESTIONS.reduce(function(a,q){ return a + q.marks; }, 0);
+var LETTERS = ['A','B','C','D','E','F'];
+
+var S = { i:0, answers:{}, flags:{}, left:60*60, running:false };
+var priMode = false;
+var timerInt = null, saveInt = null, lastSave = 0;
+
+function openStudent(){
+  resetStudentDemo();
+  go('student');
+}
+function resetStudentDemo(){
+  document.getElementById('st-login').style.display = 'block';
+  ['st-start','st-exam','st-review','st-done'].forEach(function(id){
+    document.getElementById(id).style.display = 'none';
+  });
+  document.getElementById('f-code').value = '';
+  document.getElementById('f-key').value = '';
+  showErr('e-code', null); showErr('e-key', null);
+  loginTries = 0;
+  S = { i:0, answers:{}, flags:{}, left:60*60, running:false };
+  stopTimer();
+}
+
+function startExam(){
+  S.running = true; S.i = 0; S.left = 60*60;
+  document.getElementById('st-start').style.display = 'none';
+  document.getElementById('st-exam').style.display = 'block';
+  document.getElementById('exam-body').className = 'exam-body' + (priMode ? ' primary-layout' : '');
+  renderNav(); renderQ(); updateTimer();
+  stopTimer();
+  timerInt = setInterval(function(){
+    if(!S.running) return;
+    S.left = Math.max(0, S.left - 1);
+    updateTimer();
+    if(S.left === 0){ S.running = false; doSubmit(); }
+  }, 1000);
+  lastSave = Date.now();
+  saveInt = setInterval(refreshSaveLabel, 1000);
+  window.scrollTo(0,0);
+}
+function stopTimer(){ if(timerInt){ clearInterval(timerInt); timerInt = null; } if(saveInt){ clearInterval(saveInt); saveInt = null; } }
+function updateTimer(){
+  var m = Math.floor(S.left/60), s = S.left % 60;
+  var el = document.getElementById('timer');
+  el.textContent = (m<10?'0':'') + m + ':' + (s<10?'0':'') + s;
+  el.className = 'timer' + (S.left <= 60 ? ' crit' : (S.left <= 300 ? ' warn' : ''));
+}
+function refreshSaveLabel(){
+  var secs = Math.round((Date.now() - lastSave)/1000);
+  var txt = secs < 2 ? 'Saved · just now' : (secs < 60 ? 'Saved · ' + secs + 's ago' : 'Saved · ' + Math.floor(secs/60) + 'm ago');
+  document.getElementById('save-text').textContent = txt;
+  document.getElementById('save-state').className = 'save-state';
+}
+function flashSave(){
+  var st = document.getElementById('save-state');
+  st.className = 'save-state saving';
+  document.getElementById('save-text').textContent = 'Saving…';
+  setTimeout(function(){ lastSave = Date.now(); refreshSaveLabel(); }, 550);
+}
+
+function isAnswered(idx){
+  var a = S.answers[idx], q = QUESTIONS[idx];
+  if(a === undefined || a === null) return false;
+  if(q.type === 'multi') return Array.isArray(a) && a.length > 0;
+  if(q.type === 'fill') return String(a).trim().length > 0;
+  return true;
+}
+function answeredCount(){ var n=0; for(var i=0;i<QUESTIONS.length;i++) if(isAnswered(i)) n++; return n; }
+function flaggedCount(){ var n=0; for(var k in S.flags) if(S.flags[k]) n++; return n; }
+
+function renderNav(){
+  var g = document.getElementById('navgrid'); g.innerHTML = '';
+  for(var i=0;i<QUESTIONS.length;i++){
+    (function(i){
+      var b = document.createElement('button');
+      b.className = 'navcell' + (isAnswered(i) ? ' answered' : '') + (i === S.i ? ' current' : '') + (S.flags[i] ? ' flagged' : '');
+      b.textContent = i+1;
+      b.onclick = function(){ S.i = i; renderNav(); renderQ(); };
+      g.appendChild(b);
+    })(i);
+  }
+  var ans = answeredCount();
+  document.getElementById('lg-ans').textContent = '(' + ans + ')';
+  document.getElementById('lg-un').textContent = '(' + (QUESTIONS.length - ans) + ')';
+  document.getElementById('lg-fl').textContent = '(' + flaggedCount() + ')';
+}
+
+function renderQ(){
+  var q = QUESTIONS[S.i];
+  var pane = document.getElementById('qpane');
+  var typeLabel = {single:'Single choice', multi:'Multiple choice', tf:'True / False', fill:'Fill in the blank'}[q.type];
+  var html = '';
+  html += '<div class="qmeta"><span class="chip brand">Question ' + (S.i+1) + ' of ' + QUESTIONS.length + '</span>';
+  html += '<span class="chip mute">' + typeLabel + '</span><span class="chip mute">' + q.marks + ' mark' + (q.marks>1?'s':'') + '</span>';
+  if(S.flags[S.i]) html += '<span class="chip warn">⚑ flagged</span>';
+  html += '</div>';
+  html += '<div class="qstem">' + q.stem + '</div>';
+
+  if(q.type === 'fill'){
+    var val = S.answers[S.i] || '';
+    html += '<input class="fillinput" id="fillbox" placeholder="Type your answer" value="' + String(val).replace(/"/g,'&quot;') + '" />';
+  } else {
+    var sel = S.answers[S.i];
+    for(var o=0;o<q.opts.length;o++){
+      var on = false;
+      if(q.type === 'multi') on = Array.isArray(sel) && sel.indexOf(o) >= 0;
+      else on = (sel === o);
+      html += '<button class="opt' + (on?' sel':'') + '" data-o="' + o + '"><span class="k">' + LETTERS[o] + '</span><span>' + q.opts[o] + '</span></button>';
+    }
+  }
+
+  html += '<div class="exam-actions">';
+  html += '<button class="btn" id="prevbtn"' + (S.i===0?' disabled':'') + '>← Previous</button>';
+  html += '<button class="btn" id="flagbtn">' + (S.flags[S.i]?'Unflag':'⚑ Flag') + '</button>';
+  if(S.i === QUESTIONS.length-1){
+    html += '<button class="btn primary" onclick="openReview()">Review &amp; submit →</button>';
+  } else {
+    html += '<button class="btn primary" id="nextbtn">Next →</button>';
+  }
+  html += '</div>';
+  pane.innerHTML = html;
+
+  pane.querySelectorAll('.opt').forEach(function(b){
+    b.onclick = function(){ choose(parseInt(b.getAttribute('data-o'),10)); };
+  });
+  var pv = document.getElementById('prevbtn');
+  if(pv) pv.onclick = function(){ if(S.i>0){ S.i--; renderNav(); renderQ(); } };
+  var nx = document.getElementById('nextbtn');
+  if(nx) nx.onclick = function(){ if(S.i < QUESTIONS.length-1){ S.i++; renderNav(); renderQ(); } };
+  var fb = document.getElementById('flagbtn');
+  if(fb) fb.onclick = function(){ S.flags[S.i] = !S.flags[S.i]; renderNav(); renderQ(); };
+  var fill = document.getElementById('fillbox');
+  if(fill){
+    fill.oninput = function(){ S.answers[S.i] = fill.value; flashSave(); renderNav(); };
+    fill.focus();
+  }
+}
+
+function choose(o){
+  var q = QUESTIONS[S.i];
+  if(q.type === 'multi'){
+    var cur = Array.isArray(S.answers[S.i]) ? S.answers[S.i].slice() : [];
+    var at = cur.indexOf(o);
+    if(at >= 0) cur.splice(at,1); else cur.push(o);
+    cur.sort(function(a,b){ return a-b; });
+    S.answers[S.i] = cur;
+  } else {
+    S.answers[S.i] = o;
+  }
+  flashSave(); renderNav(); renderQ();
+}
+
+/* keyboard: 1-6 answer, arrows move, F flag */
+document.addEventListener('keydown', function(e){
+  if(current !== 'student') return;
+  if(document.getElementById('st-exam').style.display !== 'block') return;
+  if(e.target && e.target.tagName === 'INPUT') return;
+  var q = QUESTIONS[S.i];
+  if(e.key >= '1' && e.key <= '6'){
+    var o = parseInt(e.key,10) - 1;
+    if(q.opts && o < q.opts.length) choose(o);
+  } else if(e.key === 'ArrowRight'){ if(S.i < QUESTIONS.length-1){ S.i++; renderNav(); renderQ(); } }
+  else if(e.key === 'ArrowLeft'){ if(S.i > 0){ S.i--; renderNav(); renderQ(); } }
+  else if(e.key === 'f' || e.key === 'F'){ S.flags[S.i] = !S.flags[S.i]; renderNav(); renderQ(); }
+});
+
+/* review */
+function openReview(){
+  document.getElementById('st-exam').style.display = 'none';
+  document.getElementById('st-review').style.display = 'block';
+  var ans = answeredCount(), fl = flaggedCount();
+  document.getElementById('rv-ans').textContent = ans + ' answered';
+  document.getElementById('rv-un').textContent = (QUESTIONS.length - ans) + ' unanswered';
+  document.getElementById('rv-fl').textContent = fl + ' flagged';
+  var list = document.getElementById('rv-list'); list.innerHTML = '';
+  for(var i=0;i<QUESTIONS.length;i++){
+    (function(i){
+      var done = isAnswered(i);
+      var row = document.createElement('div');
+      row.className = 'review-row';
+      row.innerHTML = '<span class="num' + (done?' done':'') + '">' + (i+1) + '</span>' +
+        '<span style="flex:1">' + QUESTIONS[i].stem + '</span>' +
+        (S.flags[i] ? '<span class="chip warn">⚑ flagged</span>' : '') +
+        '<span class="chip ' + (done?'ok':'warn') + '">' + (done?'answered':'unanswered') + '</span>';
+      row.style.cursor = 'pointer';
+      row.onclick = function(){ S.i = i; closeReview(); };
+      list.appendChild(row);
+    })(i);
+  }
+  window.scrollTo(0,0);
+}
+function closeReview(){
+  document.getElementById('st-review').style.display = 'none';
+  document.getElementById('st-exam').style.display = 'block';
+  renderNav(); renderQ();
+}
+function askSubmit(){
+  var un = QUESTIONS.length - answeredCount();
+  document.getElementById('submit-msg').textContent = un === 0
+    ? 'You have answered all ' + QUESTIONS.length + ' questions. Once submitted you cannot change your answers.'
+    : 'You still have ' + un + ' question' + (un>1?'s':'') + ' unanswered. Once submitted you cannot change your answers.';
+  document.getElementById('submit-modal').classList.add('show');
+}
+function closeSubmit(){ document.getElementById('submit-modal').classList.remove('show'); }
+
+function markExam(){
+  var score = 0;
+  for(var i=0;i<QUESTIONS.length;i++){
+    var q = QUESTIONS[i], a = S.answers[i];
+    if(q.type === 'single' || q.type === 'tf'){ if(a === q.answer) score += q.marks; }
+    else if(q.type === 'multi'){
+      var got = (Array.isArray(a) ? a.slice() : []).join(',');
+      var want = q.answer.slice().join(',');
+      if(got === want) score += q.marks;
+    }
+    else if(q.type === 'fill'){
+      var t = String(a||'').trim().replace(/\s+/g,' ').toLowerCase();
+      if(q.accept.indexOf(t) >= 0) score += q.marks;
+    }
+  }
+  return score;
+}
+function gradeOf(pct){
+  if(pct >= 70) return 'A'; if(pct >= 60) return 'B'; if(pct >= 50) return 'C';
+  if(pct >= 45) return 'D'; if(pct >= 40) return 'E'; return 'F';
+}
+
+function doSubmit(){
+  closeSubmit();
+  S.running = false; stopTimer();
+  var score = markExam();
+  var pct = Math.round((score / TOTAL_MARKS) * 1000) / 10;
+  document.getElementById('st-review').style.display = 'none';
+  document.getElementById('st-exam').style.display = 'none';
+  document.getElementById('st-done').style.display = 'block';
+  var now = new Date();
+  document.getElementById('done-time').textContent =
+    ('0'+now.getHours()).slice(-2) + ':' + ('0'+now.getMinutes()).slice(-2);
+  /* demo exam has show-score off in the builder; show it anyway with a note, since the teacher can enable it */
+  document.getElementById('scoreblock').style.display = 'block';
+  document.getElementById('scorecircle').style.setProperty('--p', pct);
+  document.getElementById('score-n').textContent = score;
+  document.getElementById('score-l').textContent = score + ' / ' + TOTAL_MARKS + ' · ' + pct + '%';
+  document.getElementById('score-grade').textContent = 'Grade ' + gradeOf(pct);
+  window.scrollTo(0,0);
+  toast('session.submitted + session.scored queued to the outbox → syncs when the school is online');
+}
+
+/* ============ teacher ============ */
+function teacherPane(id, btn){
+  document.querySelectorAll('#view-teacher .pane').forEach(function(p){ p.classList.remove('on'); });
+  document.getElementById(id).classList.add('on');
+  document.querySelectorAll('#view-teacher .navbtn').forEach(function(b){ b.classList.remove('on'); });
+  var b = btn || document.querySelector('#view-teacher .navbtn[data-tpane="' + id + '"]');
+  if(b) b.classList.add('on');
+  window.scrollTo(0,0);
+}
+function confirmImport(){
+  document.getElementById('import-card').innerHTML =
+    '<div style="padding:34px; text-align:center">' +
+    '<div style="font-size:2.4rem">✅</div>' +
+    '<h3 style="margin:10px 0 6px">38 questions imported</h3>' +
+    '<p class="muted" style="font-size:.88rem; line-height:1.7; max-width:460px; margin:0 auto">2 rows skipped as likely duplicates · 1 row with a missing answer was not imported.<br>' +
+    'Every question entered your bank as a <b>draft</b> — nothing goes straight into an exam (US-6.5).</p>' +
+    '<div style="display:flex; gap:10px; justify-content:center; margin-top:18px">' +
+    '<button class="btn primary" onclick="teacherPane(\'t-bank\')">View question bank</button>' +
+    '<button class="btn" onclick="toast(\'Template downloaded: questions-template.xlsx\')">Download template</button></div></div>';
+  toast('38 created · 2 skipped · 1 error · report.csv ready');
+}
+function publishPack(){
+  var btn = document.getElementById('publish-btn');
+  btn.disabled = true; btn.textContent = 'Building pack…';
+  document.getElementById('ps-build').className = 'packstep on';
+  setTimeout(function(){
+    document.getElementById('ps-freeze').className = 'packstep ok';
+    document.getElementById('ps-build').className = 'packstep ok';
+    document.getElementById('ps-build').textContent = 'Pack v2 built ✓';
+    btn.textContent = 'Verifying on server…';
+    setTimeout(function(){
+      document.getElementById('ps-verify').className = 'packstep ok';
+      btn.disabled = false; btn.textContent = 'Publish pack';
+      toast('Pack version 2 signed and verified on the school server · checksum OK');
+    }, 1100);
+  }, 900);
+}
+function releaseResults(){
+  var btn = document.getElementById('release-btn');
+  btn.disabled = true; btn.textContent = 'Releasing…';
+  setTimeout(function(){
+    document.querySelectorAll('#results-body .rst').forEach(function(td){
+      td.innerHTML = '<span class="chip ok">released</span>';
+    });
+    btn.textContent = 'Released ✓';
+    toast('10 results released · 8 parent notifications queued (no scores in the message)');
+  }, 700);
+}
+
+/* ============ invigilator console ============ */
+var SEAT_NAMES = ['Tunde Bello','Chioma Eze','Ahmad Yusuf','Grace Okon','Emeka Nwosu','Zainab Ali','Daniel Oke','Blessing Ade','Samuel Etim','Halima Sani',
+                  'Ife Obi','Ngozi Umeh','Kola Adeyemi','Mary James','Segun Alabi','Aisha Bello','Peter Uche','Rita Eze','Musa Dan','Bola Costa',
+                  'Uche Nnaji','Hauwa Sani','Femi Balogun','Rose Ekpo'];
+var seatState = [], seatInt = null, sittingOpen = false;
+
+function seedSeats(){
+  seatState = [];
+  for(var i=0;i<SEAT_NAMES.length;i++){
+    seatState.push({ label:'PC-' + ('0'+(i+1)).slice(-2), name:SEAT_NAMES[i],
+      status:'notstarted', answered:0, sub:false });
+  }
+}
+function renderSeats(){
+  var wrap = document.getElementById('seats'); if(!wrap) return;
+  var html = '', live = 0, sub = 0, off = 0;
+  for(var i=0;i<seatState.length;i++){
+    var s = seatState[i];
+    var cls = s.status === 'live' ? 'live' : (s.status === 'sub' ? 'sub' : (s.status === 'off' ? 'off' : 'notstarted'));
+    var label = s.status === 'live' ? 'IN EXAM' : (s.status === 'sub' ? 'SUBMITTED' : (s.status === 'off' ? 'OFFLINE' : 'NOT STARTED'));
+    if(s.status === 'live') live++;
+    if(s.status === 'sub') sub++;
+    if(s.status === 'off') off++;
+    var pct = Math.round((s.answered / QUESTIONS.length) * 100);
+    html += '<div class="seat"><div class="sn"><span>' + s.label + '</span><span class="st ' + cls + '">' + label + '</span></div>' +
+            '<div class="who">' + s.name + '</div>' +
+            '<div class="prog"><i style="width:' + pct + '%"></i></div>' +
+            '<div style="color:#64748b; margin-top:5px; font-size:.7rem">' + (s.status==='notstarted' ? 'waiting' : s.answered + '/' + QUESTIONS.length + ' answered') + '</div></div>';
+  }
+  wrap.innerHTML = html;
+  document.getElementById('seat-summary').innerHTML = sittingOpen
+    ? ('<span class="chip live" style="background:#1e40af; color:#bfdbfe">' + live + ' in exam</span> <span class="chip" style="background:#14532d; color:#86efac">' + sub + ' submitted</span>' + (off ? ' <span class="chip" style="background:#78350f; color:#fcd34d">' + off + ' offline</span>' : ''))
+    : 'Not started';
+}
+function startSeats(){
+  if(!seatState.length) seedSeats();
+  renderSeats();
+  if(seatInt) return;
+  seatInt = setInterval(function(){
+    if(!sittingOpen) return;
+    for(var i=0;i<seatState.length;i++){
+      var s = seatState[i];
+      if(s.status === 'notstarted' && Math.random() < 0.16){ s.status = 'live'; }
+      else if(s.status === 'live'){
+        if(s.answered < QUESTIONS.length && Math.random() < 0.5) s.answered++;
+        if(s.answered >= QUESTIONS.length && Math.random() < 0.35) s.status = 'sub';
+        else if(Math.random() < 0.03) s.status = 'off';
+      } else if(s.status === 'off'){
+        if(Math.random() < 0.25){ s.status = 'live'; }
+      }
+    }
+    renderSeats();
+  }, 1600);
+}
+function stopSeats(){ if(seatInt){ clearInterval(seatInt); seatInt = null; } }
+function openSitting(){
+  sittingOpen = true;
+  document.getElementById('keybox').style.display = 'block';
+  document.getElementById('open-btn').style.display = 'none';
+  document.getElementById('close-btn').style.display = 'block';
+  startSeats();
+  toast('Sitting opened · exam key generated · sitting.opened queued to the outbox');
+  window.scrollTo(0,0);
+}
+function closeSitting(){
+  sittingOpen = false;
+  for(var i=0;i<seatState.length;i++){
+    if(seatState[i].status === 'live' || seatState[i].status === 'off'){ seatState[i].status = 'sub'; seatState[i].answered = QUESTIONS.length; }
+  }
+  renderSeats();
+  document.getElementById('keybox').style.display = 'none';
+  document.getElementById('open-btn').style.display = 'block';
+  document.getElementById('close-btn').style.display = 'none';
+  toast('Sitting closed · every open session submitted and marked · sitting.closed sent');
+}
+
+/* ============ parent ============ */
+function pickKid(n){
+  document.getElementById('kid0').classList.toggle('on', n === 0);
+  document.getElementById('kid1').classList.toggle('on', n === 1);
+  closeResult();
+  document.getElementById('ph-title').textContent = n === 0 ? 'Tunde Bello · JSS 2 Gold' : 'Ife Bello · Primary 4 Blue';
+  document.getElementById('kid-results').style.display = n === 0 ? 'block' : 'none';
+  document.getElementById('kid-empty').style.display = n === 0 ? 'none' : 'block';
+}
+function openResult(sub, score, pct, grade, avg, date, flag){
+  document.getElementById('kid-results').style.display = 'none';
+  document.getElementById('kid-empty').style.display = 'none';
+  document.getElementById('kid-detail').style.display = 'block';
+  document.getElementById('d-sub').textContent = sub;
+  document.getElementById('d-score').textContent = score;
+  document.getElementById('d-pct').textContent = pct;
+  document.getElementById('d-grade').textContent = 'Grade ' + grade;
+  document.getElementById('d-avg').textContent = avg;
+  document.getElementById('d-date').textContent = date;
+  document.getElementById('d-upd').style.display = flag === 'updated' ? 'inline-flex' : 'none';
+}
+function closeResult(){
+  document.getElementById('kid-detail').style.display = 'none';
+  var isTunde = document.getElementById('kid0').classList.contains('on');
+  document.getElementById('kid-results').style.display = isTunde ? 'block' : 'none';
+  document.getElementById('kid-empty').style.display = isTunde ? 'none' : 'block';
+}
+
+/* init */
+setLayout('secondary');
+seedSeats();
+</script>
+</body>
+</html>

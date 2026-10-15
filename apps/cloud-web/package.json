@@ -1,0 +1,13 @@
+{
+  "name": "@cbt/cloud-web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Next.js portals: admin, teacher, parent and platform-owner (placeholder).",
+  "scripts": {
+    "build": "node ../../scripts/copy-static.mjs public dist",
+    "typecheck": "node ../../scripts/noop.mjs typecheck",
+    "test": "node ../../scripts/noop.mjs test",
+    "dev": "node ../../scripts/serve-static.mjs public 3001",
+    "clean": "node ../../scripts/clean.mjs dist"
+  }
+}

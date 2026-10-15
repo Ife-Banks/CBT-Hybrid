@@ -1,0 +1,28 @@
+{
+  "name": "@cbt/exam-core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pure TypeScript algorithms: student codes, exam keys, shuffle, marking, packs and crypto helpers.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "clean": "node ../../scripts/clean.mjs dist"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.5",
+    "typescript": "6.0.3",
+    "vitest": "5.0.4"
+  }
+}
