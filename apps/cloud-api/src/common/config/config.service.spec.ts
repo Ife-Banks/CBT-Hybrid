@@ -2,13 +2,17 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { ConfigService, loadEnv } from './config.service';
 
 /** Save/restore env keys touched by a test. */
-const touched: string[] = [];
+const originals = new Map<string, string | undefined>();
 function setEnv(key: string, value: string): void {
-  if (!touched.includes(key)) touched.push(key);
+  if (!originals.has(key)) originals.set(key, process.env[key]);
   process.env[key] = value;
 }
 afterEach(() => {
-  for (const key of touched.splice(0)) delete process.env[key];
+  for (const [key, value] of originals) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+  originals.clear();
 });
 
 describe('loadEnv (configuration validation)', () => {
@@ -57,5 +61,84 @@ describe('ConfigService.port / publicUrl', () => {
     const config = new ConfigService();
     expect(config.port).toBe(4111);
     expect(config.publicUrl).toBe('http://localhost:4111');
+  });
+});
+
+describe('ConfigService auth settings', () => {
+  it('exposes the Phase 2 limits with the API spec defaults (section 20)', () => {
+    expect(new ConfigService().auth).toEqual({
+      staffSessionTtlSeconds: 12 * 60 * 60,
+      parentSessionTtlSeconds: 30 * 24 * 60 * 60,
+      lockoutThreshold: 5,
+      lockoutSeconds: 15 * 60,
+      otpTtlSeconds: 10 * 60,
+      otpMaxAttempts: 5,
+      otpResendSeconds: 60,
+      loginRateLimitMax: 10,
+      loginRateLimitWindowMs: 60_000,
+    });
+  });
+
+  it('reads the limits from the environment when provided', () => {
+    setEnv('SESSION_TTL_STAFF_SECONDS', '60');
+    setEnv('ACCOUNT_LOCKOUT_THRESHOLD', '3');
+    setEnv('OTP_MAX_ATTEMPTS', '2');
+    const config = new ConfigService();
+    expect(config.auth.staffSessionTtlSeconds).toBe(60);
+    expect(config.auth.lockoutThreshold).toBe(3);
+    expect(config.auth.otpMaxAttempts).toBe(2);
+    // Untouched values keep their defaults.
+    expect(config.auth.parentSessionTtlSeconds).toBe(30 * 24 * 60 * 60);
+  });
+
+  it('uses a development secret unless one is supplied', () => {
+    const fallback = new ConfigService();
+    expect(fallback.hasExplicitSessionSecret).toBe(false);
+    expect(fallback.sessionSecret).toContain('development-only');
+
+    setEnv('SESSION_SECRET', 'an-explicit-secret-value');
+    const explicit = new ConfigService();
+    expect(explicit.hasExplicitSessionSecret).toBe(true);
+    expect(explicit.sessionSecret).toBe('an-explicit-secret-value');
+  });
+
+  it('treats a blank SESSION_SECRET as unset', () => {
+    setEnv('SESSION_SECRET', '');
+    const config = new ConfigService();
+    expect(config.hasExplicitSessionSecret).toBe(false);
+    expect(config.sessionSecret).toContain('development-only');
+  });
+
+  it('requires an explicit session secret in production', () => {
+    expect(() => loadEnv({ NODE_ENV: 'production' } as unknown as NodeJS.ProcessEnv)).toThrow(
+      /SESSION_SECRET/,
+    );
+    expect(() =>
+      loadEnv({
+        NODE_ENV: 'production',
+        SESSION_SECRET: '',
+      } as unknown as NodeJS.ProcessEnv),
+    ).toThrow(/SESSION_SECRET/);
+    expect(() =>
+      loadEnv({
+        NODE_ENV: 'production',
+        SESSION_SECRET: 'x'.repeat(32),
+      } as unknown as NodeJS.ProcessEnv),
+    ).not.toThrow();
+  });
+
+  it('marks cookies Secure in production and for an HTTPS public URL', () => {
+    expect(new ConfigService().cookieSecure).toBe(false);
+
+    setEnv('NODE_ENV', 'production');
+    setEnv('SESSION_SECRET', 'x'.repeat(32));
+    expect(new ConfigService().cookieSecure).toBe(true);
+
+    setEnv('NODE_ENV', 'development');
+    setEnv('CLOUD_API_PUBLIC_URL', 'https://cbt.example.ng');
+    expect(new ConfigService().cookieSecure).toBe(true);
+
+    setEnv('CLOUD_API_PUBLIC_URL', 'http://localhost:3000');
+    expect(new ConfigService().cookieSecure).toBe(false);
   });
 });

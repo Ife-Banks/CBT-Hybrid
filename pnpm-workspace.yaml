@@ -5,3 +5,7 @@ packages:
 allowBuilds:
   esbuild: true
   '@swc/core': true
+  argon2: true
+
+minimumReleaseAgeExclude:
+  - '@casl/ability@7.0.2'

@@ -2,6 +2,7 @@ import { Controller, Get } from '@nestjs/common';
 import { VERSION, type HealthCheck, type ServiceHealth } from '@cbt/shared-types';
 import * as os from 'node:os';
 import { ConfigService } from '../../common/config/config.service';
+import { Public } from '../../common/decorators/public.decorator';
 
 /** Human-readable uptime, for example `2h 34m 12s`. */
 function formatUptime(seconds: number): string {
@@ -16,6 +17,7 @@ function formatUptime(seconds: number): string {
   return parts.join(' ');
 }
 
+@Public()
 @Controller()
 export class HealthController {
   constructor(private readonly config: ConfigService) {}

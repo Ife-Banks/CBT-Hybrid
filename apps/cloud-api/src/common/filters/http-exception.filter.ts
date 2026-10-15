@@ -50,6 +50,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     let code: ErrorCode = 'INTERNAL';
     let detail: string = ERROR_CATALOGUE.INTERNAL.title;
     let errors: FieldError[] | undefined;
+    let extra: Record<string, unknown> | undefined;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -76,6 +77,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
         } else if (typeof record.detail === 'string') {
           detail = record.detail;
         }
+
+        const fromRecord = toFieldErrors(record.errors);
+        if (fromRecord) errors = fromRecord;
+        extra = extraMembers(record);
       }
     } else {
       this.logger.error(
@@ -85,7 +90,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       );
     }
 
-    const body: ProblemDetails = {
+    const body = {
       type: `https://docs.cbt.example/errors/${code.toLowerCase().replace(/_/g, '-')}`,
       title: isErrorCode(code) ? ERROR_CATALOGUE[code].title : 'Error',
       status,
@@ -93,10 +98,56 @@ export class HttpExceptionFilter implements ExceptionFilter {
       detail,
       request_id: requestId,
       ...(errors ? { errors } : {}),
-    };
+      ...(extra ?? {}),
+    } as ProblemDetails;
 
     response.status(status);
     response.setHeader('content-type', PROBLEM_JSON_CONTENT_TYPE);
     response.json(body);
   }
+}
+
+/** Members that belong on the problem body rather than nested in the exception. */
+const RESERVED_MEMBERS = new Set([
+  'code',
+  'message',
+  'detail',
+  'errors',
+  'type',
+  'title',
+  'status',
+  'request_id',
+]);
+
+/**
+ * Copy any additional exception members (for example `locked_until` on
+ * `ACCOUNT_LOCKED`, `attempts_left` on `OTP_INVALID`) straight onto the problem
+ * body, which is allowed by RFC 9457.
+ */
+function extraMembers(record: Record<string, unknown>): Record<string, unknown> | undefined {
+  const extra: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(record)) {
+    if (RESERVED_MEMBERS.has(key)) continue;
+    extra[key] = value;
+  }
+  return Object.keys(extra).length > 0 ? extra : undefined;
+}
+
+/** Accept a well-formed `errors[]` array; ignore anything else. */
+function toFieldErrors(value: unknown): FieldError[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const result: FieldError[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object') return undefined;
+    const record = entry as Record<string, unknown>;
+    if (
+      typeof record.field !== 'string' ||
+      typeof record.code !== 'string' ||
+      typeof record.message !== 'string'
+    ) {
+      return undefined;
+    }
+    result.push({ field: record.field, code: record.code, message: record.message });
+  }
+  return result;
 }

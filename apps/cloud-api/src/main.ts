@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { RequestMethod } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { type NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
@@ -16,6 +17,12 @@ async function bootstrap(): Promise<void> {
   const logger = app.get(LoggerService);
   app.useLogger(logger);
 
+  // Cloud routes live under `/api/v1` (API spec section 1.1); `/health` stays at
+  // the root so infrastructure probes do not need the version prefix.
+  app.setGlobalPrefix('api/v1', {
+    exclude: [{ path: 'health', method: RequestMethod.GET }],
+  });
+
   // Security and middleware (Phase 1 task 1).
   app.use(requestIdMiddleware());
   app.use(helmet());
@@ -26,6 +33,19 @@ async function bootstrap(): Promise<void> {
     rateLimit({
       windowMs: config.get('RATE_LIMIT_WINDOW_MS'),
       limit: config.get('RATE_LIMIT_MAX'),
+      standardHeaders: 'draft-7',
+      legacyHeaders: false,
+      handler: problemRateLimitHandler(),
+    }),
+  );
+
+  // Stricter sign-in limit (API spec section 1.7: 10 per minute per IP). The
+  // per-account lockout is enforced in AuthService.
+  app.use(
+    '/api/v1/auth/login',
+    rateLimit({
+      windowMs: config.auth.loginRateLimitWindowMs,
+      limit: config.auth.loginRateLimitMax,
       standardHeaders: 'draft-7',
       legacyHeaders: false,
       handler: problemRateLimitHandler(),
