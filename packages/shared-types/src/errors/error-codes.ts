@@ -39,6 +39,7 @@ export const ERROR_CATALOGUE = {
   OTP_INVALID: { status: 400, title: 'Invalid one-time code' },
   OTP_LOCKED: { status: 429, title: 'Too many wrong codes' },
   ACCOUNT_LOCKED: { status: 423, title: 'Account locked' },
+  CONSOLE_LOCKED: { status: 423, title: 'Console locked' },
 
   // Validation and imports
   VALIDATION_FAILED: { status: 422, title: 'Validation failed' },

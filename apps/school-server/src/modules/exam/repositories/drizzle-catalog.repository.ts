@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, count, eq } from 'drizzle-orm';
 import { DrizzleSqliteService } from '../../../shared/database/drizzle-sqlite.service';
 import type { SqliteDB } from '../../../shared/database/drizzle-sqlite.service';
-import { classes, exams, seats, sittings, students, subjects } from '../../../shared/database/schema';
+import { classes, examSessions, exams, seats, sittings, students, subjects } from '../../../shared/database/schema';
 import { toExamRecord, toSittingRecord, toStudentRecord } from '../domain/mappers';
 import type {
   ExamRecord,
@@ -117,6 +117,36 @@ export class DrizzleCatalogRepository implements CatalogRepository {
       .from(sittings)
       .where(eq(sittings.status, 'open'));
     return Number(rows[0]?.value ?? 0);
+  }
+
+  async countInProgressSessions(): Promise<number> {
+    const rows = await this.db
+      .select({ value: count() })
+      .from(examSessions)
+      .where(eq(examSessions.status, 'in_progress'));
+    return Number(rows[0]?.value ?? 0);
+  }
+
+  async countSubmittedSessions(): Promise<number> {
+    const rows = await this.db
+      .select({ value: count() })
+      .from(examSessions)
+      .where(eq(examSessions.status, 'submitted'));
+    return Number(rows[0]?.value ?? 0);
+  }
+
+  async openSitting(sittingId: string): Promise<void> {
+    await this.db
+      .update(sittings)
+      .set({ status: 'open', openedAt: new Date().toISOString() })
+      .where(eq(sittings.id, sittingId));
+  }
+
+  async closeSitting(sittingId: string): Promise<void> {
+    await this.db
+      .update(sittings)
+      .set({ status: 'closed', closedAt: new Date().toISOString() })
+      .where(eq(sittings.id, sittingId));
   }
 
   async findSeatByIp(ip: string): Promise<SeatRecord | null> {

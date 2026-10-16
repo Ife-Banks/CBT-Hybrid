@@ -34,6 +34,11 @@ export interface CatalogRepository {
   listOpenSittingsForClass(classId: string): Promise<SittingRecord[]>;
   countOpenSittings(): Promise<number>;
 
+  countInProgressSessions(): Promise<number>;
+  countSubmittedSessions(): Promise<number>;
+  openSitting(sittingId: string): Promise<void>;
+  closeSitting(sittingId: string): Promise<void>;
+
   findSeatByIp(ip: string): Promise<SeatRecord | null>;
   touchSeat(code: string, at: string, ip: string | null): Promise<void>;
 }
