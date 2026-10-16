@@ -476,13 +476,23 @@ pnpm --filter @cbt/cloud-api typecheck
 2. **Random question selection** in ExamBuilderService is not implemented (throws ConflictException)
 3. **Import-based question selection** in ExamBuilderService is not implemented (throws ConflictException)
 4. Real database behavior with PostgreSQL environment not yet verified
-5. School server exam delivery (Phase 6C) not yet implemented
+5. School server: the section 17 console API, section 13 sync agent and the
+   section 16.10 asset/integrity-event endpoints are not implemented yet. The
+   student exam API (section 16.2–16.9) and pack import are complete.
 
 Repository DI was fixed after Phase 6B: every Drizzle repository injects
 `DrizzleService`, the `users`/`questions`/`exams` services use explicit
 `@Optional() @Inject(...)` tokens, and those modules import `AuthModule` for
 `AuditService` and the guard dependencies. `app.database.module.spec.ts` boots
 the full dependency graph with `DATABASE_URL` set to guard against regressions.
+
+School-server exam delivery (Phase 6C) is implemented in
+`apps/school-server/src/modules/exam/`: repositories are bound to interface
+tokens, `PackImportService` verifies packs with `meta.cloud_public_key`,
+`ExamSessionService` owns the section 16 flow and `SessionExpiryService` runs the
+5-second expiry sweep. `DrizzleSqliteService` applies the section 4.2 schema
+migration on startup. The pack data key is stored in `meta` under
+`pack_key:<pack_id>`; Phase 8 replaces that with device-key wrapping (spec 13.6).
 
 ## External Dependencies
 

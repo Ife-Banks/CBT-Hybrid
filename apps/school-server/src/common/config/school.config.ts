@@ -6,6 +6,12 @@ const optionalPort = z.preprocess(
   z.coerce.number().int().min(1).max(65535).optional(),
 );
 
+/** Empty-string-tolerant optional secret; blank values count as unset. */
+const optionalSecret = z.preprocess(
+  (value) => (value === '' || value === undefined ? undefined : value),
+  z.string().min(16).optional(),
+);
+
 /**
  * School-server configuration. Mostly environment-driven, with a local data
  * directory that holds the SQLite database and the exam-pack folders
@@ -20,6 +26,11 @@ export const SchoolEnvSchema = z.object({
   CBT_DATA_DIR: z.string().min(1).default('./data'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   BODY_LIMIT: z.string().default('10mb'),
+  /**
+   * HMAC secret for the short-lived login ticket (API spec 16.1). Optional so
+   * development works out of the box; production must set it.
+   */
+  TICKET_SIGNING_SECRET: optionalSecret,
 });
 
 export type SchoolEnv = z.infer<typeof SchoolEnvSchema>;

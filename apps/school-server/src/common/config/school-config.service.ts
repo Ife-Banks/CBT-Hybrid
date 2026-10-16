@@ -2,6 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { join, resolve } from 'node:path';
 import { EXAM_PACK_FOLDERS, SchoolEnv, loadSchoolEnv } from './school.config';
 
+/** Placeholder secret used outside production when `TICKET_SIGNING_SECRET` is unset. */
+const DEV_TICKET_SIGNING_SECRET = 'development-only-ticket-secret-do-not-use';
+
 /** Typed access to school-server configuration and derived paths. */
 @Injectable()
 export class SchoolConfigService {
@@ -22,6 +25,15 @@ export class SchoolConfigService {
 
   get isProduction(): boolean {
     return this.env.NODE_ENV === 'production';
+  }
+
+  /**
+   * Secret for signing login tickets. Falls back to a development-only value so
+   * the server starts without configuration; production must set
+   * `TICKET_SIGNING_SECRET`.
+   */
+  get ticketSigningSecret(): string {
+    return this.env.TICKET_SIGNING_SECRET ?? DEV_TICKET_SIGNING_SECRET;
   }
 
   /** Absolute path of the data directory. */

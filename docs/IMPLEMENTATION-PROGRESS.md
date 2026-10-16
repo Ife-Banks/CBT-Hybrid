@@ -3,8 +3,8 @@
 ## Current Status
 
 **Last Updated:** 2026
-**Current Phase:** Phase 6B (Deterministic Pack Generation & Validation) - COMPLETED ✅
-**Next Phase:** Phase 6C (School Server Exam Delivery)
+**Current Phase:** Phase 6C (School Server Exam Delivery) - COMPLETED ✅
+**Next Phase:** Phase 7 (School Console) / Phase 8 (Sync) — see "Phase 6C scope" below
 
 ## Completed Phases
 
@@ -126,33 +126,75 @@ key produce byte-identical packs.
 **Verification:** exam-core 81 tests, cloud-api 200 passed / 2 skipped, typecheck
 11/11 tasks, build 9/9 tasks.
 
-### Phase 6C: School Server Exam Delivery ⏳
-**Status:** Not Started
-**Estimated Duration:** 3-4 days
-**Risk Level:** High
+### Phase 6C: School Server Exam Delivery ✅
+**Status:** Complete (student exam API + schema + pack import; console, sync,
+asset serving and integrity events deferred — see below)
+
+**Completed work:**
+- **exam-core pack runtime** (`packages/exam-core/src/packs/`):
+  - `pack-reader.ts`: `readPack` / `decryptKeysFile` reopen a `.cbtpack` and
+    decrypt `keys.enc` when a pack key is supplied
+  - `pack-marking.ts`: `markPackAnswer` / `markPackSession` mark answers against
+    pack keys with the same rules as the cloud
+  - `pack-shuffle.ts`: `prepareSessionQuestions` / `optionLabel` build the
+    deterministic, seed-derived session view (questions and options)
+  - Tests: 23 new
+- **School-server schema** (`apps/school-server/src/shared/database/schema.ts`) now
+  implements CBT-Database-Architecture section 4.2 in full: `meta`, `classes`,
+  `subjects`, `students`, `exams`, `packs`, `sittings`, `seats`, `sessions`
+  (exam sessions), `answers`, `results`, `outbox`, `sync_state`, `audit_log`,
+  `backup_log`, with CHECK constraints, partial indexes and the
+  `prevent_answer_rollback` trigger.
+  - The unused staff sign-in table was renamed `sessions` → `auth_sessions` so the
+    spec name `sessions` belongs to exam sessions. Migration
+    `0001_exam_delivery.sql` performs the rename, drops/recreates the old indexes
+    and creates the new tables.
+  - `DrizzleSqliteService` now applies migrations on startup, so the server is
+    self-sufficient; `build` copies the migrations folder into `dist`.
+- **Exam delivery module** (`apps/school-server/src/modules/exam/`):
+  - Repositories (`meta`, `catalog`, `pack`, `session`, `outbox`) with Drizzle
+    implementations bound through injection tokens
+  - `PackImportService`: verifies a pack with `verifyPack` against
+    `meta.cloud_public_key` and the school id, stores it in the `active` folder,
+    upserts its subject/exam and records the `packs` row; caches parsed packs
+  - `TicketService`: HMAC-SHA256 login tickets (15 min) carrying
+    `student_id` / `sitting_id` / `seat`
+  - `ExamSessionService`: login (code + exam-key checks, seat handling, resume
+    with token rotation), start, session read, batched answer auto-save, ping,
+    submit (mark + result + outbox) and the expiry sweep
+  - `SessionExpiryService`: 5-second sweep submitting overdue sessions
+    (`time_up`) and sessions past `window_end` (`window_closed`)
+  - `LoginThrottleService`: `SEAT_LOCKED` after five failed logins from a seat
+  - `SessionTokenGuard` + `ExamController` exposing the section 16 routes under
+    `/api/v1/exam`
+  - Tests: 33 new (tickets, throttle, pack import, and an end-to-end HTTP run of
+    the full exam lifecycle against a real SQLite database)
+
+**Determinism:** a session's question order is derived from `sessions.seed` and the
+pack, so resume, re-read and marking all see the same order; packs are re-verified
+on import and answer writes are guarded by `seq`.
+
+**Server-side expiry:** the timer is authoritative — a client that dies mid-exam is
+submitted from its last saved answers.
+
+**Verification:** school-server 47 tests, cloud-api 203 passed / 2 skipped,
+typecheck 11/11 tasks, build 9/9 tasks, plus a runtime smoke test of
+`node dist/main.js` (all section 16 routes mapped, `/api/v1/exam/status` 200 with
+startup migrations applied).
+
+**Deferred (out of Phase 6C scope, by decision):**
+- Section 16.10 `GET /assets/:asset_id` and `POST /events` (and `session_events`)
+- Section 17 invigilator console API
+- Section 13 cloud sync agent
+
+### Phase 6C (remaining work) ⏳
+**Status:** Deferred items above
+**Estimated Duration:** 3-4 days for console + sync
 
 **Requirements:**
-- Extend school-server SQLite schema with sessions, answers, seats tables
-- Implement ExamSessionService for session management
-- Implement AutoSaveService for answer auto-save
-- Add exam delivery endpoints
-- Implement session recovery
-- Support states: in_progress, submitted, expired, reset
-- Token-based session authentication
-- Deterministic question ordering
-- Time tracking
-- Debounced saves (2 seconds)
-- Exponential backoff for failed saves
-- Offline queueing for network interruptions
-- End-to-end lifecycle tests
-
-**Key Deliverables:**
-- SQLite schema extension for school server
-- Session management service
-- Auto-save service with debouncing and backoff
-- Exam delivery endpoints
-- Session recovery logic
-- E2E tests for exam lifecycle
+- Console API (section 17): PIN sign-in, overview/readiness, open/close sittings
+- Sync agent (section 13): push outbox events, pull roster/packs
+- Asset serving and integrity events (section 16.10)
 
 ## Technical Patterns Established
 
@@ -162,6 +204,10 @@ key produce byte-identical packs.
   `get db()` getter (`DrizzleDB` stays a type-only import)
 - Services inject repositories through `@Optional() @Inject(Drizzle*Repository)`
   tokens and use non-null assertions, since providers only exist when `DATABASE_URL` is set
+- School-server repositories inject `DrizzleSqliteService` (same lazy `get db()`
+  getter) and are bound to interface tokens (`META_REPOSITORY`,
+  `CATALOG_REPOSITORY`, `PACK_REPOSITORY`, `SESSION_REPOSITORY`,
+  `OUTBOX_REPOSITORY`) in `ExamModule`
 - All repository methods use explicit school scoping
 
 ### Audit Logging
@@ -188,8 +234,12 @@ key produce byte-identical packs.
 
 ### Database
 - Drizzle ORM with PostgreSQL (cloud) and SQLite (school server)
-- Schema in `@cbt/shared-types`
-- Migrations in app-specific directories
+- Cloud schema in `@cbt/shared-types`
+- School-server schema is app-local
+  (`apps/school-server/src/shared/database/schema.ts`, CBT-Database-Architecture
+  section 4.2)
+- Migrations in app-specific directories; `DrizzleSqliteService` applies them on
+  startup and `build` copies the folder into `dist`
 - Proper indexes for performance
 
 ## File Structure
@@ -210,8 +260,11 @@ CBT-School/
 │   │   └── drizzle.config.ts       # Drizzle config
 │   └── school-server/
 │       └── src/
+│           ├── modules/
+│           │   └── exam/           # Phase 6C exam delivery
 │           └── shared/database/
-│               └── schema.ts       # SQLite schema
+│               ├── schema.ts       # SQLite schema (section 4.2)
+│               └── migrations/     # 0000 auth + 0001 exam delivery
 ├── packages/
 │   ├── shared-types/
 │   │   └── src/
@@ -264,6 +317,8 @@ pnpm --filter @cbt/cloud-api test
 
 ## Next Immediate Steps
 
-1. Verify pack generation against a real PostgreSQL database with seeded questions.
-2. Begin Phase 6C (school server exam delivery): pack loader + `verifyPack` wiring,
-   session management, auto-save.
+1. Phase 6C remaining: section 17 console API (PIN sign-in, overview/readiness,
+   open/close sittings) and section 16.10 asset/event endpoints.
+2. Phase 8: sync agent pushing the `outbox` (`sitting.*`, `session.*`) to the
+   cloud `POST /sync/v1/results` and pulling roster/packs.
+3. Verify pack generation against a real PostgreSQL database with seeded questions.

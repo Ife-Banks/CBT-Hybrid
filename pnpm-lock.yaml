@@ -284,6 +284,9 @@ importers:
 
   apps/school-server:
     dependencies:
+      '@cbt/exam-core':
+        specifier: workspace:*
+        version: link:../../packages/exam-core
       '@cbt/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types

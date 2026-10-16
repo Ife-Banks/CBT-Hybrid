@@ -2,27 +2,33 @@
 
 ## Where I Left Off
 
-**Current Phase:** Phase 6B (Deterministic Pack Generation & Validation) - COMPLETED ✅
-**Last Commit:** feat: implement phases 3-5 and enable modules in main app (commit 479d43f) + Phase 6B changes (uncommitted)
-**Next Phase:** Phase 6C (School Server Exam Delivery)
+**Current Phase:** Phase 6C (School Server Exam Delivery) - COMPLETED ✅
+**Last Commit:** `feat: implement phases 3-5 and enable modules in main app (479d43f)` → `fix: resolve Nest dependency injection (bc4a6d4)` → `feat: phase 6A exam management + 6B pack generation (f595c24)` + Phase 6C changes
+**Next Phase:** Phase 6C remaining (section 17 console API, section 13 sync agent, section 16.10 assets/events)
 
 ## What Was Just Completed
 
-Phase 6B added deterministic exam pack generation and validation:
+Phase 6C delivered the school-server student exam API (CBT-03 section 16):
 
-- `packages/exam-core/src/packs/`: canonical JSON, deterministic ZIP, `questions.json` /
-  `keys.enc` builders, `buildPack`, `verifyPack` (named failures per CBT-03 §14)
-- `apps/cloud-api/src/modules/exams/`: `ExamPackRepository`, `PackSourceRepository`,
-  `PackStore`, `ExamPackService`, `PacksController`, exam `publish`/`packs` endpoints
-- Real signed `.cbtpack` ZIPs: AES-256-GCM `keys.enc`, Ed25519 signature over
-  `SHA-256(manifest.json bytes)`
-- 14 new exam-core tests + 15 new cloud-api tests
+- School-server SQLite schema now implements CBT-Database-Architecture section 4.2
+  (`sessions`, `answers`, `results`, `outbox`, `students`, `packs`, `sittings`, …).
+  The old staff table was renamed to `auth_sessions` (migration `0001_exam_delivery`).
+  `DrizzleSqliteService` applies migrations on startup.
+- `apps/school-server/src/modules/exam/`: `PackImportService` (verify + store packs),
+  `TicketService`, `ExamSessionService`, `SessionExpiryService`,
+  `LoginThrottleService`, `SessionTokenGuard`, `ExamController`
+  (`/api/v1/exam/status|login|start|session|session/answers|ping|session/submit`).
+- `packages/exam-core/src/packs/`: `readPack`, `markPackSession`,
+  `prepareSessionQuestions` so pack semantics are not duplicated.
+- 23 new exam-core tests, 33 new school-server tests.
 
 **Verification Status**
 
 ✅ Typecheck: 11 tasks successful
-✅ Tests: exam-core 81 passed; cloud-api 200 passed, 2 skipped
+✅ Tests: exam-core 104 passed; school-server 47 passed; cloud-api 203 passed, 2 skipped
 ✅ Build: 9 tasks successful
+✅ Runtime smoke test: `node dist/main.js` maps every section 16 route and
+   `GET /api/v1/exam/status` returns 200
 
 ## How to Resume Work
 
@@ -31,6 +37,8 @@ Phase 6B added deterministic exam pack generation and validation:
 ```bash
 cd C:\Users\USER\Desktop\Projects\CBT-School
 pnpm --filter @cbt/cloud-api dev
+# or the school server
+pnpm --filter @cbt/school-server dev
 ```
 
 ### 2. Run Tests to Verify Current State
@@ -39,7 +47,7 @@ pnpm --filter @cbt/cloud-api dev
 pnpm test
 ```
 
-Expected: exam-core 81 passed; cloud-api 200 passed, 2 skipped
+Expected: exam-core 104 passed; school-server 47 passed; cloud-api 203 passed, 2 skipped
 
 ### 3. Check Typecheck
 
@@ -49,37 +57,44 @@ pnpm typecheck
 
 Expected: All 11 tasks successful
 
-### 4. Review the Phase 6B Deliverables
+### 4. Review the Phase 6C Deliverables
 
-- `packages/exam-core/src/packs/` - canonical JSON, ZIP, `buildPack`, `verifyPack`
-- `apps/cloud-api/src/modules/exams/exam-pack.service.ts` - pack service
-- `apps/cloud-api/src/modules/exams/packs.controller.ts` - pack endpoints
+- `apps/school-server/src/modules/exam/` - the whole exam delivery module
+- `apps/school-server/src/shared/database/schema.ts` - section 4.2 schema
+- `packages/exam-core/src/packs/pack-reader.ts`, `pack-marking.ts`, `pack-shuffle.ts`
 
-Read `docs/CBT-03-API-and-Sync-Specification.md` section 14 for the pack format.
+Read `docs/CBT-03-API-and-Sync-Specification.md` section 16 for the exam API.
 
-## Next Steps: Phase 6C (School Server Exam Delivery)
+## Next Steps: Remaining Phase 6C Work
 
-Phase 6B is complete. Next is Phase 6C:
-
-1. Extend the school-server SQLite schema with sessions, answers and seats tables
-2. Implement `ExamSessionService`, `AutoSaveService` and navigation
-3. Load and verify packs on the school server with `verifyPack` from `@cbt/exam-core`
-4. Implement session recovery, debounced saves and backoff
-5. End-to-end lifecycle tests
+1. Section 17 console API: PIN sign-in (`meta.console_pin_hash`), overview/readiness,
+   open/close sittings (writes `sitting.opened` / `sitting.closed` to `outbox`)
+2. Section 16.10: `GET /assets/:asset_id` (session-scoped pack assets) and
+   `POST /events` (integrity signals; needs `session_events`)
+3. Section 13 sync agent: push `outbox` to the cloud `POST /sync/v1/results`
+4. Phase 8: replace the local pack-key storage in `meta` (`pack_key:<pack_id>`) with
+   device-key wrapping (spec 13.6)
 
 **Repository DI:** fixed. Every Drizzle repository injects `DrizzleService` (never a
 raw `DrizzleDB`), the `users`/`questions`/`exams` services declare repository
 parameters with `@Optional() @Inject(Drizzle*Repository)`, and those modules import
 `AuthModule` for `AuditService` and the guard dependencies. Verified by
 `app.database.module.spec.ts`, which boots the whole graph with `DATABASE_URL` set.
+The school server binds its repositories through interface tokens in `ExamModule`.
 
 ## Reference Implementation Patterns
 
-Use existing Phase 6A code as reference:
+Cloud API (Phase 6A/6B):
 - Service pattern from `exams.service.ts`
 - Repository pattern from `repositories/exam.repository.ts`
 - Controller pattern from `exams.controller.ts`
 - Test pattern from `exams.service.spec.ts`
+
+School server (Phase 6C):
+- Interface-token repositories from `modules/exam/repositories/`
+- Service + guard + controller from `modules/exam/exam-session.service.ts`,
+  `guards/session-token.guard.ts`, `exam.controller.ts`
+- End-to-end pattern from `modules/exam/exam.e2e.spec.ts`
 
 ## Common Issues and Solutions
 
@@ -97,12 +112,12 @@ Use existing Phase 6A code as reference:
 
 ## Git Workflow
 
-Before starting Phase 6B, ensure the current state is committed:
+Before starting new work, ensure the current state is committed:
 
 ```bash
 git status
 git add .
-git commit -m "feat: implement phase 6A cloud exam management"
+git commit -m "feat: implement phase 6C school-server exam delivery"
 ```
 
 ## Helpful Commands
@@ -132,15 +147,15 @@ git stash
 
 - If you encounter TypeScript errors that don't match the patterns in TECHNICAL-REFERENCE.md
 - If test failures are unclear or unexpected
-- If you need clarification on Phase 6B requirements
+- If you need clarification on the console API or sync requirements
 - If you're unsure about pack structure or signing approach
 
 ## Estimated Timeline
 
-Phase 6B: 3-4 days
-- Day 1: Service implementation and deterministic generation
-- Day 2: Cryptographic signing and validation
-- Day 3: Pack endpoints and tests
+Phase 6C remaining (console + sync): 3-4 days
+- Day 1: Section 17 console PIN sign-in and overview
+- Day 2: Open/close sittings and outbox events
+- Day 3: Section 13 sync push
 - Day 4: Verification and documentation
 
-Good luck with Phase 6B! 🚀
+The student exam API (section 16.2–16.9) and pack import are done. 🚀
