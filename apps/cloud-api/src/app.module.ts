@@ -6,6 +6,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { QuestionsModule } from './modules/questions/questions.module';
+import { ExamsModule } from './modules/exams/exams.module';
 import { HealthModule } from './modules/health/health.module';
 import { LoggerModule } from './shared/logger/logger.module';
 
@@ -17,6 +18,7 @@ import { LoggerModule } from './shared/logger/logger.module';
     AuthModule,
     UsersModule,
     QuestionsModule,
+    ExamsModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },

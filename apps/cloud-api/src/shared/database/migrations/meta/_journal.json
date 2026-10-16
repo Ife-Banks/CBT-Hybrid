@@ -29,6 +29,13 @@
       "when": 1792079376400,
       "tag": "0003_complex_redwing",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792083938914,
+      "tag": "0004_omniscient_dazzler",
+      "breakpoints": true
     }
   ]
 }

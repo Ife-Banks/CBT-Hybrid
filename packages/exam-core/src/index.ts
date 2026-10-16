@@ -11,6 +11,7 @@ export * from './crypto/request-signing';
 export * from './crypto/sha256';
 export * from './exam-key/exam-key';
 export * from './marking/marking-engine';
+export * from './packs';
 export * from './phone/phone';
 export * from './shuffle/deterministic-shuffler';
 export * from './shuffle/hash32';

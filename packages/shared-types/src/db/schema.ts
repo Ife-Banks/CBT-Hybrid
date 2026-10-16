@@ -21,6 +21,11 @@ export const assetTypeEnum = pgEnum('asset_type', ['image', 'audio', 'video', 'd
 export const importJobKindEnum = pgEnum('import_job_kind', ['word', 'excel', 'csv', 'json']);
 export const importJobStatusEnum = pgEnum('import_job_status', ['pending', 'processing', 'completed', 'failed', 'cancelled']);
 
+// Phase 6: Exam Engine Enums
+export const examKindEnum = pgEnum('exam_kind', ['test', 'exam', 'practice', 'quiz']);
+export const examStatusEnum = pgEnum('exam_status', ['draft', 'ready', 'published', 'archived']);
+export const sittingStatusEnum = pgEnum('sitting_status', ['scheduled', 'open', 'closed', 'cancelled']);
+
 // Schools table
 export const schools = pgTable('schools', {
   id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
@@ -332,6 +337,107 @@ export const importJobs = pgTable('import_jobs', {
   createdAtIdx: index('idx_import_jobs_created').on(table.createdAt),
 }));
 
+// Phase 6: Exam Engine Tables
+
+// Classes table (needed for exam_classes)
+export const classes = pgTable('classes', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  levelName: text('level_name'),
+  section: text('section').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  schoolSectionIdx: index('idx_classes_school_section').on(table.schoolId, table.section),
+}));
+
+// Exams table
+export const exams = pgTable('exams', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  subjectId: text('subject_id').notNull().references(() => subjects.id, { onDelete: 'restrict' }),
+  kind: examKindEnum('kind').notNull().default('exam'),
+  durationMin: integer('duration_min').notNull(),
+  shuffleQuestions: boolean('shuffle_questions').notNull().default(true),
+  shuffleOptions: boolean('shuffle_options').notNull().default(true),
+  negativeMarking: boolean('negative_marking').notNull().default(false),
+  showScoreToStudent: boolean('show_score_to_student').notNull().default(false),
+  passMarkPct: numeric('pass_mark_pct', { precision: 5, scale: 2 }),
+  instructions: text('instructions'),
+  status: examStatusEnum('status').notNull().default('draft'),
+  frozenAt: timestamp('frozen_at', { withTimezone: true }),
+  createdBy: text('created_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  schoolStatusIdx: index('idx_exams_school_status').on(table.schoolId, table.status, table.createdAt),
+  subjectIdx: index('idx_exams_subject').on(table.subjectId),
+  creatorIdx: index('idx_exams_creator').on(table.createdBy),
+  frozenIdx: index('idx_exams_frozen').on(table.frozenAt),
+}));
+
+// Exam Classes join table
+export const examClasses = pgTable('exam_classes', {
+  examId: text('exam_id').notNull().references(() => exams.id, { onDelete: 'cascade' }),
+  classId: text('class_id').notNull().references(() => classes.id, { onDelete: 'cascade' }),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.examId, table.classId] }),
+  classIdx: index('idx_exam_classes_class').on(table.classId),
+}));
+
+// Exam Questions join table
+export const examQuestions = pgTable('exam_questions', {
+  examId: text('exam_id').notNull().references(() => exams.id, { onDelete: 'cascade' }),
+  questionId: text('question_id').notNull().references(() => questions.id, { onDelete: 'restrict' }),
+  position: integer('position').notNull(),
+  marksOverride: numeric('marks_override', { precision: 5, scale: 2 }),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.examId, table.questionId] }),
+  questionIdx: index('idx_exam_questions_question').on(table.questionId),
+  positionIdx: index('idx_exam_questions_position').on(table.examId, table.position),
+}));
+
+// Sittings table
+export const sittings = pgTable('sittings', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  examId: text('exam_id').notNull().references(() => exams.id, { onDelete: 'restrict' }),
+  classId: text('class_id').notNull().references(() => classes.id, { onDelete: 'restrict' }),
+  windowStart: timestamp('window_start', { withTimezone: true }).notNull(),
+  windowEnd: timestamp('window_end', { withTimezone: true }).notNull(),
+  extraTimeMin: integer('extra_time_min').notNull().default(0),
+  status: sittingStatusEnum('status').notNull().default('scheduled'),
+  examKeyHash: text('exam_key_hash'),
+  openedAt: timestamp('opened_at', { withTimezone: true }),
+  closedAt: timestamp('closed_at', { withTimezone: true }),
+  closedBy: text('closed_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  schoolStatusIdx: index('idx_sittings_school_status').on(table.schoolId, table.status, table.windowStart),
+  examIdx: index('idx_sittings_exam').on(table.examId),
+  classIdx: index('idx_sittings_class').on(table.classId),
+  windowIdx: index('idx_sittings_window').on(table.windowStart, table.windowEnd),
+}));
+
+// Exam Packs table
+export const examPacks = pgTable('exam_packs', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  examId: text('exam_id').notNull().references(() => exams.id, { onDelete: 'cascade' }),
+  version: integer('version').notNull(),
+  keyVersion: integer('key_version').notNull().default(1),
+  manifest: jsonb('manifest').notNull(),
+  storageKey: text('storage_key').notNull(),
+  sizeBytes: integer('size_bytes').notNull(),
+  sha256: text('sha256').notNull(),
+  signature: text('signature').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  examVersionUnique: unique('idx_exam_packs_exam_version').on(table.examId, table.version),
+  examIdx: index('idx_exam_packs_exam').on(table.examId, table.version),
+  sha256Idx: index('idx_exam_packs_sha256').on(table.sha256),
+}));
+
 // Types
 export type School = typeof schools.$inferSelect;
 export type NewSchool = typeof schools.$inferInsert;
@@ -385,3 +491,22 @@ export type NewQuestionAsset = typeof questionAssets.$inferInsert;
 
 export type ImportJob = typeof importJobs.$inferSelect;
 export type NewImportJob = typeof importJobs.$inferInsert;
+
+// Phase 6: Exam Engine Types
+export type Class = typeof classes.$inferSelect;
+export type NewClass = typeof classes.$inferInsert;
+
+export type Exam = typeof exams.$inferSelect;
+export type NewExam = typeof exams.$inferInsert;
+
+export type ExamClass = typeof examClasses.$inferSelect;
+export type NewExamClass = typeof examClasses.$inferInsert;
+
+export type ExamQuestion = typeof examQuestions.$inferSelect;
+export type NewExamQuestion = typeof examQuestions.$inferInsert;
+
+export type Sitting = typeof sittings.$inferSelect;
+export type NewSitting = typeof sittings.$inferInsert;
+
+export type ExamPack = typeof examPacks.$inferSelect;
+export type NewExamPack = typeof examPacks.$inferInsert;
