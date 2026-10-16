@@ -1,11 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { eq, desc, sql } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import type { DrizzleDB } from '../../../shared/database/drizzle.service';
 import { DrizzleService } from '../../../shared/database/drizzle.service';
 import { examPacks } from '@cbt/shared-types';
 import type { ExamPackRepository } from './exam-pack.repository';
 import type { ExamPackDomainRecord, CreateExamPackDto } from '../domain/types';
 import { mapExamPackToDomain } from '../domain/mappers';
+import crypto from 'node:crypto';
 
 @Injectable()
 export class DrizzleExamPackRepository implements ExamPackRepository {
@@ -16,9 +17,11 @@ export class DrizzleExamPackRepository implements ExamPackRepository {
   }
 
   async create(dto: CreateExamPackDto): Promise<ExamPackDomainRecord> {
+    const id = crypto.randomUUID();
     const rows = await this.db
       .insert(examPacks)
       .values({
+        id,
         examId: dto.examId,
         version: dto.version,
         keyVersion: dto.keyVersion ?? 1,
@@ -50,20 +53,26 @@ export class DrizzleExamPackRepository implements ExamPackRepository {
     return rows.map(mapExamPackToDomain);
   }
 
-  async findByExamAndVersion(examId: string, version: number): Promise<ExamPackDomainRecord | null> {
+  async findByExamIdAndVersion(examId: string, version: number): Promise<ExamPackDomainRecord | null> {
     const [row] = await this.db
       .select()
       .from(examPacks)
-      .where(sql`${examPacks.examId} = ${examId} and ${examPacks.version} = ${version}`)
+      .where(and(eq(examPacks.examId, examId), eq(examPacks.version, version)))
       .limit(1);
     return row ? mapExamPackToDomain(row) : null;
   }
 
   async getLatestVersion(examId: string): Promise<number> {
     const [row] = await this.db
-      .select({ version: sql<number>`coalesce(max(${examPacks.version}), 0)` })
+      .select({ version: examPacks.version })
       .from(examPacks)
-      .where(eq(examPacks.examId, examId));
-    return Number(row?.version ?? 0);
+      .where(eq(examPacks.examId, examId))
+      .orderBy(desc(examPacks.version))
+      .limit(1);
+    return row?.version ?? 0;
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.db.delete(examPacks).where(eq(examPacks.id, id));
   }
 }

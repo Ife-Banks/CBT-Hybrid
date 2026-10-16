@@ -13,9 +13,10 @@
 **Purpose:** Quick start guide for resuming work
 **When to read:** First thing in a new session
 **What you'll learn:**
-- Where you left off (Phase 6A complete)
+- Where you left off (Phase 6A complete, Phase 6B next)
 - How to verify current state (commands to run)
 - Step-by-step Phase 6B implementation guide
+- Important notes for Phase 6B
 - Common issues and solutions
 - Estimated timeline
 
@@ -23,11 +24,12 @@
 **Purpose:** Overall project progress tracking
 **When to read:** To understand what's been done and what's left
 **What you'll learn:**
-- Status of all phases (0-6A complete, 6B and 6C remaining)
+- Status of all phases (0-6A complete, 6B next)
 - Detailed breakdown of each completed phase
 - Technical patterns established
 - File structure overview
 - Known limitations and TODOs
+- Note: Uses 1-based numbering (Phase 1 = Auth), not the spec's 0-based numbering
 
 ### 4. docs/TECHNICAL-REFERENCE.md
 **Purpose:** Implementation patterns and code style
@@ -45,13 +47,13 @@
 - Code style guidelines
 
 ### 5. docs/CBT-Phase-6-ExamEngine.md
-**Purpose:** Detailed specification for Phase 6
-**When to read:** Before implementing Phase 6B or 6C
+**Purpose:** Detailed specification for Phase 6 (backend-only)
+**When to read:** Before implementing Phase 6
 **What you'll learn:**
-- Phase 6A requirements (exam management) - COMPLETED
-- Phase 6B requirements (pack generation) - NEXT
-- Phase 6C requirements (school server delivery) - LATER
-- Technical specifications for each sub-phase
+- Task 1: Exam Builder & Management - ✅ COMPLETE
+- Task 2: Deterministic Pack Generation - ⏳ NEXT
+- Task 3: Student Exam Interface - ❌ NOT NEEDED (backend-only scope)
+- Technical specifications for each task
 
 ## Supplementary Documents (Read as Needed)
 
@@ -83,47 +85,47 @@
 ## Phase-Specific Documents (Read as Needed)
 
 ### docs/CBT-Phase-0-Foundation.md
-**Purpose:** Foundation and infrastructure
+**Title:** Foundation & Setup
 **Status:** ✅ Complete
 
 ### docs/CBT-Phase-1-Infrastructure.md
-**Purpose:** Authentication and authorization
+**Title:** Core Infrastructure
 **Status:** ✅ Complete
 
 ### docs/CBT-Phase-2-Authentication.md
-**Purpose:** Data layer and ORM
+**Title:** Authentication & Authorization
 **Status:** ✅ Complete
 
 ### docs/CBT-Phase-3-DataLayer.md
-**Purpose:** User management
+**Title:** Data Layer & ORM
 **Status:** ✅ Complete
 
 ### docs/CBT-Phase-4-UserManagement.md
-**Purpose:** Question bank (core)
+**Title:** User Management
 **Status:** ✅ Complete
 
 ### docs/CBT-Phase-5-QuestionBank.md
-**Purpose:** Question bank (advanced)
+**Title:** Question Bank System
 **Status:** ✅ Complete
 
 ### docs/CBT-Phase-6-ExamEngine.md
-**Purpose:** Exam engine (6A complete, 6B next, 6C later)
-**Status:** 6A ✅, 6B ⏳, 6C ⏳
+**Title:** Exam Engine
+**Status:** Task 1 ✅, Task 2 ⏳, Task 3 ❌ (not needed for backend-only scope)
 
 ### docs/CBT-Phase-7-SchoolServer.md
-**Purpose:** School server
+**Title:** School Server
 **Status:** ⏳ Not started
 
 ### docs/CBT-Phase-8-SyncSystem.md
-**Purpose:** Synchronization system
+**Title:** Sync System
 **Status:** ⏳ Not started
 
 ### docs/CBT-Phase-9-Results.md
-**Purpose:** Results and analytics
+**Title:** Results & Analytics
 **Status:** ⏳ Not started
 
 ### docs/CBT-Phase-10-Production.md
-**Purpose:** Production deployment
+**Title:** Monitoring & Production
 **Status:** ⏳ Not started
 
 ## Development Documentation
@@ -157,7 +159,7 @@
 2. Read QUICK-START.md
 3. Skip to "How to Get Up to Speed" section
 4. Run verification commands
-5. Read Phase 6B section in CBT-Phase-6-ExamEngine.md
+5. Read Phase 6 (Task 2) section in CBT-Phase-6-ExamEngine.md
 6. Read relevant sections in TECHNICAL-REFERENCE.md
 
 ### For Understanding Patterns:
@@ -184,13 +186,18 @@ Some documents reference others:
 - TECHNICAL-REFERENCE.md → references Database-Architecture.md
 - Phase documents → reference Database-Architecture.md
 
+**Note on Phase Numbering:**
+- Phase spec documents use 0-based numbering (Phase 0, Phase 1, Phase 2, etc.)
+- IMPLEMENTATION-PROGRESS.md uses 1-based numbering (Phase 1 = Auth, Phase 2 = Data Layer, etc.)
+- This is an internal consistency difference - the spec documents are authoritative for phase titles and content
+
 ## Summary
 
 **Must Read (in order):**
 1. NEW-SESSION-START.md (for new session prompt)
 2. QUICK-START.md (to resume work)
 3. TECHNICAL-REFERENCE.md (for coding patterns)
-4. CBT-Phase-6-ExamEngine.md (for current phase requirements)
+4. CBT-Phase-6-ExamEngine.md (for current phase requirements - Task 2)
 
 **Read as Needed:**
 - IMPLEMENTATION-PROGRESS.md (for overall progress)

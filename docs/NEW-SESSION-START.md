@@ -2,7 +2,11 @@
 
 ## Overview
 
-This is a prompt you can use in a new session to quickly understand the CBT School project context, what has been implemented, and what needs to be done next.
+This is a prompt you can use in a new session to quickly understand the CBT School
+project context, what has been implemented, and what needs to be done next.
+
+It is the single source of truth for "where did I stop". `QUICK-START.md` covers the
+same ground in more detail; `IMPLEMENTATION-PROGRESS.md` is the per-phase ledger.
 
 ---
 
@@ -15,222 +19,195 @@ I'm working on the CBT School backend project. Here's the context:
 - Workspace: C:\Users\USER\Desktop\Projects\CBT-School
 
 ## What is CBT School?
-A computer-based testing platform for students taking exams on lab PCs against an offline-capable local school server, while teachers, administrators, parents, and platform owners use cloud portals. The system supports rosters, exam content, and results synchronization between the school server and cloud when connectivity is available.
+A computer-based testing platform: students sit exams on lab PCs against an
+offline-capable local school server, while teachers, administrators, parents and
+platform owners use cloud portals. Rosters, exam content, packs and results sync
+between the school server and the cloud when connectivity is available.
 
 ## Current Implementation Status
 
-### Completed Phases (Phases 0-6A):
+### Completed (Phases 0 - 6C):
 ✅ Phase 0: Foundation & Infrastructure (Turborepo, TypeScript, build tooling)
-✅ Phase 1: Authentication & Authorization (password hashing, sessions, 2FA, RBAC, CASL, audit logging)
-✅ Phase 2: Data Layer & ORM (Drizzle ORM, PostgreSQL for cloud, SQLite for school server)
-✅ Phase 3: User Management (students, guardians, invitations, student codes)
-✅ Phase 4: Question Bank - Core (subjects, levels, 5 question types, search, approval, versioning)
-✅ Phase 5: Question Bank - Advanced (2 more question types, media management, import/export, bulk operations)
-✅ Phase 6A: Cloud Exam Management (classes, exams, sittings, exam builder, scheduler)
+✅ Phase 1: Authentication & Authorization (argon2, sessions, CSRF, 2FA/OTP, RBAC,
+   CASL, audit logging, password reset, rate limiting, lockout)
+✅ Phase 2: Data Layer & ORM (Drizzle: PostgreSQL for cloud, SQLite for school)
+✅ Phase 3: User Management (students, guardians, guardianships, invitations,
+   student codes)
+✅ Phase 4: Question Bank - Core (subjects, levels, 5 question types, search,
+   approval workflow, versioning)
+✅ Phase 5: Question Bank - Advanced (matching + ordering, media, import/export,
+   bulk operations, GIN indexes)
+✅ Phase 6A: Cloud Exam Management (classes, exams, sittings, exam builder,
+   scheduler, authorization, audit)
+✅ Phase 6B: Deterministic Pack Generation & Validation (canonical JSON, store-only
+   ZIP, questions.json / keys.enc, Ed25519-signed .cbtpack, verifyPack with named
+   failures, cloud pack endpoints)
+✅ Phase 6C: School Server Exam Delivery (Section 4.2 SQLite schema, pack import,
+   Section 16 student exam API, server-side expiry sweep)
 
-### Current Phase:
-Phase 6A (Cloud Exam Management) is COMPLETE ✅
-- All tests passing (185 passed, 2 skipped)
-- Typecheck passing (11 tasks)
-- Build successful (9 tasks)
-- Last commit: feat: implement phases 3-5 and enable modules in main app (479d43f)
+### What is NOT done yet (this is the work that remains):
+1. Section 16.10 of the API spec: GET /assets/:asset_id and POST /events
+   (integrity signals; needs a session_events table).
+2. Section 17 invigilator console API: PIN sign-in (meta.console_pin_hash),
+   overview/readiness, open/close sittings (writes sitting.opened / sitting.closed
+   to the outbox).
+3. Section 13 cloud sync agent: push the school outbox to the cloud
+   (POST /sync/v1/results) and pull roster + packs. This is the biggest blocker -
+   until it exists, school results stay local.
+4. Phase 9: results and analytics on the cloud.
+5. Phase 10: production hardening. Known gap: cloud behaviour has never been
+   proven against a real PostgreSQL database (tests use mocks/fakes).
 
-### Next Phase:
-Phase 6B: Deterministic Pack Generation & Validation (NOT STARTED)
+## Verification Status (verified at commit bb77c64)
+✅ Typecheck: 11 tasks successful
+✅ Tests: exam-core 104 passed; school-server 47 passed; cloud-api 203 passed, 2 skipped
+✅ Build: 9 tasks successful
+✅ Runtime smoke test: `node dist/main.js` maps every Section 16 route, applies the
+   schema migration on startup and answers GET /api/v1/exam/status with 200
+
+## Recent Commits
+- bb77c64 feat: implement phase 6C school-server exam delivery
+- bc4a6d4 fix: resolve Nest dependency injection for users, questions and exams modules
+- f595c24 feat: phase 6a/6b exam management and deterministic pack generation
+- 479d43f feat: implement phases 3-5 and enable modules in main app
+
+Nothing has been pushed to a remote.
 
 ## Key Technical Stack
-- TypeScript, NestJS
-- Drizzle ORM with PostgreSQL (cloud) and SQLite (school server)
-- Vitest for testing
-- Turborepo for monorepo management
-- CASL for authorization
-- argon2 for password hashing
-- exam-core package for shared utilities (shuffle, crypto, marking, student codes)
+- TypeScript, NestJS, Drizzle ORM (PostgreSQL cloud / SQLite school), Vitest,
+  Turborepo, CASL, argon2, zod, pino, better-sqlite3.
 
 ## Architecture
-- Monorepo with packages: cloud-api, school-server, shared-types, exam-core, ui, etc.
-- Cloud API: PostgreSQL-based, handles admin/teacher operations
-- School Server: SQLite-based, offline-capable, handles exam delivery
-- Shared types: Database schema and common types
-- exam-core: Shared utilities (shuffle, crypto, marking, student codes)
+- apps/cloud-api        - PostgreSQL admin/teacher platform
+- apps/school-server    - SQLite, offline exam delivery (exam API today)
+- packages/shared-types - shared PostgreSQL schema + shared types/error catalogue
+- packages/exam-core    - pure deterministic algorithms shared by both: shuffling,
+  crypto, marking, student codes, and the .cbtpack reader/builder/validator
+- apps/cloud-web, apps/exam-client, apps/installer - front-ends/scaffolds
 
 ## Documentation Available
 
-The project has comprehensive documentation in the docs/ folder. START HERE:
-
-1. **docs/QUICK-START.md** - ⭐ START HERE
-   - Where I left off
-   - How to resume work
-   - Step-by-step guide for Phase 6B
-   - Common issues and solutions
-
-2. **docs/IMPLEMENTATION-PROGRESS.md**
-   - Complete breakdown of all completed phases
-   - Technical patterns established
-   - File structure overview
-   - Remaining phases and requirements
-
-3. **docs/TECHNICAL-REFERENCE.md**
-   - Repository pattern (interface + Drizzle implementation)
-   - Audit logging pattern (always use actorUserId)
-   - Authorization pattern (CASL, guards)
-   - State management patterns
-   - Testing pattern (Vitest, vi.fn())
-   - Code style guidelines
-   - Common imports and file naming
-
-4. **docs/CBT-Phase-6-ExamEngine.md**
-   - Detailed specification for Phase 6 (all sub-phases: 6A, 6B, 6C)
-   - Requirements for pack generation, signing, and validation
-
-5. **docs/CBT-Database-Architecture.md**
-   - Complete database schema design
-   - Table relationships
-   - Indexes and constraints
+1. docs/QUICK-START.md - where I left off, how to resume, next steps
+2. docs/IMPLEMENTATION-PROGRESS.md - per-phase ledger and remaining work
+3. docs/TECHNICAL-REFERENCE.md - implementation patterns to follow
+4. docs/DOCUMENT-READING-GUIDE.md - how the docs fit together
+5. docs/CBT-03-API-and-Sync-Specification.md - authoritative API contract
+   (Section 14 packs, Section 15 sync, Section 16 exam API, Section 17 console)
+6. docs/CBT-Database-Architecture.md - authoritative schema (Section 4.2 school)
 
 ## How to Get Up to Speed (Step-by-Step)
 
-### Step 1: Read the Quick Start Guide
-Read: docs/QUICK-START.md
-This will tell you exactly where we left off and what to do next.
-
-### Step 2: Verify Current State
-Run these commands to ensure everything is working:
-```bash
+### Step 1: Verify Current State
 cd C:\Users\USER\Desktop\Projects\CBT-School
 pnpm typecheck
 pnpm test
 pnpm build
-```
+All three should pass with the numbers above.
 
-All should pass.
+### Step 2: Read the Quick Start + Progress Ledger
+docs/QUICK-START.md and docs/IMPLEMENTATION-PROGRESS.md.
 
-### Step 3: Review Phase 6B Requirements
-Read: docs/CBT-Phase-6-ExamEngine.md
-Focus on the Phase 6B section (pack generation and validation).
+### Step 3: Review Patterns Before Coding
+docs/TECHNICAL-REFERENCE.md. Note the school-server difference: repositories are
+bound to interface tokens (META_REPOSITORY, CATALOG_REPOSITORY, PACK_REPOSITORY,
+SESSION_REPOSITORY, OUTBOX_REPOSITORY) inside ExamModule.
 
-### Step 4: Understand Technical Patterns
-Read: docs/TECHNICAL-REFERENCE.md
-This shows you how to implement services, repositories, controllers, and tests following the established patterns.
+### Step 4: Read the Spec for Whatever You Pick Next
+docs/CBT-03-API-and-Sync-Specification.md Sections 13/16.10/17, then
+docs/CBT-Database-Architecture.md for any new tables.
 
-### Step 5: Review What Was Implemented in Phase 6A
-Read: docs/IMPLEMENTATION-PROGRESS.md
-Look at the Phase 6A section to understand the exam management foundation.
+## What to Implement Next (pick one)
 
-## What to Implement Next (Phase 6B)
+Option A - Section 17 invigilator console API (self-contained, school server only):
+- PIN sign-in using meta.console_pin_hash
+- Overview / readiness endpoints
+- Open and close sittings, writing sitting.opened / sitting.closed to the outbox
 
-Phase 6B: Deterministic Pack Generation & Validation
+Option B - Section 13 sync agent (unblocks the school -> cloud boundary):
+- Push outbox events to the cloud POST /sync/v1/results
+- Pull roster and packs, acknowledge delivered events
+- Replace the local pack-key storage in meta (pack_key:<pack_id>) with the
+  device-key wrapping described in spec 13.6
 
-Key Requirements:
-1. Create ExamPackService for pack generation
-2. Implement deterministic pack generation (same config = same pack)
-3. Use exam-core's shuffle utilities for deterministic question/option ordering
-4. Include manifest, questions, assets, encrypted answer keys
-5. Sign packs cryptographically with school's private key
-6. Validate pack signatures and contents
-7. Write determinism and validation tests
-
-Files to Create/Modify:
-- apps/cloud-api/src/modules/exams/exam-pack.service.ts (new)
-- apps/cloud-api/src/modules/exams/exams.controller.ts (add pack endpoints)
-- apps/cloud-api/src/modules/exams/exams.module.ts (add ExamPackService)
-- apps/cloud-api/src/modules/exams/exam-pack.service.spec.ts (new tests)
+Option C - Section 16.10 asset + integrity event endpoints (small).
 
 ## Important Patterns to Follow
 
-**For Services:**
-- Inject repositories with optional dependencies
-- Use non-null assertions (!) after null checks
-- Include schoolId and actorUserId in all mutation methods
-- Check school ownership before operations
-- Log audit events with actorUserId
-- Throw NotFoundException for missing resources
-- Throw ConflictException for state violations
+For Services:
+- Inject repositories via interface tokens (school server) or @Optional() @Inject(...)
+  tokens (cloud), never a raw Drizzle handle
+- Include schoolId and actorUserId in all mutation methods; audit with actorUserId
+- Check ownership before operations; NotFoundException / ConflictException for errors
 
-**For Tests:**
-- Use vi.fn() from Vitest, not jest.fn()
-- Use vi.mocked() for typed mocks
-- Follow AAA pattern (Arrange, Act, Assert)
-- Mock repositories as unknown with interface type
+For Tests:
+- Vitest: vi.fn(), vi.mocked(); no jest
+- School-server flows: seed reference rows directly through Drizzle into a temp
+  SQLite database (see modules/exam/exam.e2e.spec.ts)
 
-**For Audit Logging:**
-- Always use actorUserId, never userId
-- Event naming: resource.action (e.g., pack.generated, pack.validated)
-- Include schoolId, targetId, targetType, and detail
+For Database:
+- Cloud schema: import from @cbt/shared-types
+- School schema: app-local (apps/school-server/src/shared/database/schema.ts)
+- School migrations run automatically on startup; `build` copies the migrations
+  folder into dist. Hand-written migrations need a matching meta snapshot.
 
-**For Database:**
-- Import schema from @cbt/shared-types
-- Import DrizzleDB from local drizzle.service.ts
-- Never import from @cbt/shared-types/db (doesn't exist)
+For Determinism:
+- Pack/session behaviour must be reproducible: same inputs -> same bytes/order.
+  All ordering, shuffling, signing and marking come from @cbt/exam-core.
 
 ## Common Gotchas
 
-1. Typecheck error "Cannot find module '@cbt/shared-types/db'" → Import from @cbt/shared-types directly
-2. Test error "jest is not defined" → Use vi.fn() from Vitest
-3. Audit error "userId is not defined" → Use actorUserId in audit payload
-4. Module fails in E2E tests → Use conditional loading based on DATABASE_URL
-5. Guard import errors → Guards are in modules/auth/guards/, not modules/auth/abilities/
+1. "Cannot find module '@cbt/shared-types/db'" -> import from @cbt/shared-types
+2. "jest is not defined" -> use vi.fn()
+3. audit "userId is not defined" -> use actorUserId
+4. A new workspace dependency needs `pnpm install` before its symlink exists
+5. exam-core changes must be rebuilt (`pnpm --filter @cbt/exam-core build`) before
+   downstream packages can see the new types
+6. better-sqlite3 Drizzle transactions are synchronous: use
+   db.transaction((tx) => { ...tx.insert(...).run(); })
+7. The school `sessions` table is exam sessions; staff sign-in is `auth_sessions`
+8. Pack signing uses the CLOUD Ed25519 key (PACK_SIGNING_PRIVATE_KEY /
+   PACK_SIGNING_KEY_ID), not a per-school key
 
 ## Verification Commands
 
-Always run these after implementing:
-```bash
-pnpm typecheck  # Typecheck all packages
-pnpm test       # Run all tests
-pnpm build      # Build all packages
-```
-
-## Current Git Status
-
-Last commit: feat: implement phases 3-5 and enable modules in main app (479d43f)
-Files changed: 85 files (14,632 insertions, 26 deletions)
-
-## File Structure Reference
-
-Key directories:
-- apps/cloud-api/src/modules/exams/ - Phase 6A exam management (complete)
-- apps/cloud-api/src/modules/questions/ - Phase 5 question bank (complete)
-- apps/cloud-api/src/modules/users/ - Phase 3 user management (complete)
-- apps/cloud-api/src/modules/auth/ - Phase 1 authentication (complete)
-- packages/shared-types/src/db/schema.ts - Shared PostgreSQL schema
-- packages/exam-core/src/ - Shared utilities (shuffle, crypto, marking)
-
-## Ask for Help When
-
-- You encounter TypeScript errors that don't match the patterns in TECHNICAL-REFERENCE.md
-- Test failures are unclear or unexpected
-- You need clarification on Phase 6B requirements
-- You're unsure about pack structure or signing approach
+pnpm typecheck
+pnpm test
+pnpm build
+Plus, after touching the school server: pnpm --filter @cbt/school-server build and a
+smoke test of `node dist/main.js`.
 
 ---
 
-Please read docs/QUICK-START.md first, then proceed with Phase 6B implementation following the patterns in docs/TECHNICAL-REFERENCE.md.
+Start by reading docs/QUICK-START.md, then confirm the verification numbers above,
+then tell me which of Options A/B/C to begin.
 ```
 
 ---
 
 ## How to Use This Prompt
 
-1. In a new session, copy the entire prompt above (from "I'm working on..." to the end)
-2. Paste it into the chat
-3. The AI will understand the context and be ready to help you continue with Phase 6B
+1. In a new session, copy the prompt above (from "I'm working on..." to the end).
+2. Paste it into the chat.
+3. The AI will verify the state and be ready to continue.
 
 ## Alternative: Just the Essentials
-
-If you want a shorter version, here's the minimal prompt:
 
 ```
 I'm working on CBT School backend at C:\Users\USER\Desktop\Projects\CBT-School.
 
-Phase 6A (Cloud Exam Management) is complete. Next is Phase 6B (Deterministic Pack Generation & Validation).
+Phases 0 through 6C are complete (commit bb77c64): 6A cloud exam management,
+6B deterministic pack generation/validation, 6C school-server exam delivery
+(Section 4.2 SQLite schema + Section 16 student exam API).
 
-Read docs/QUICK-START.md to understand where we left off and what to do next.
-Read docs/TECHNICAL-REFERENCE.md for implementation patterns.
-Read docs/CBT-Phase-6-ExamEngine.md for Phase 6B requirements.
+Remaining: Section 17 invigilator console API, Section 13 school<->cloud sync
+agent, Section 16.10 assets/integrity events, then Phase 9 results and Phase 10
+production hardening (no real PostgreSQL verification yet).
 
-Phase 6B needs: ExamPackService, deterministic pack generation, cryptographic signing, validation, and tests.
+Read docs/QUICK-START.md for where we left off, docs/IMPLEMENTATION-PROGRESS.md for
+the ledger, and docs/TECHNICAL-REFERENCE.md for patterns.
 
-Current verification status: typecheck ✅, tests ✅ (185 passed), build ✅.
+Current verification: typecheck 11/11, build 9/9, tests exam-core 104 /
+school-server 47 / cloud-api 203 (+2 skipped).
 
-Please help me implement Phase 6B.
+Please confirm the state and help me continue.
 ```

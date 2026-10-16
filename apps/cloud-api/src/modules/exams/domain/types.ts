@@ -137,6 +137,11 @@ export interface CreateExamPackDto {
   signature: string;
 }
 
+export interface GeneratePackDto {
+  sittingId: string;
+  keyVersion?: number;
+}
+
 // Phase 6B: pack source data gathered straight from the question bank
 export interface PackSourceQuestionOption {
   id: string;
