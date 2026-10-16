@@ -307,6 +307,22 @@ export const results = sqliteTable('results', {
   scoredAt: text('scored_at').notNull(),
 });
 
+export const sessionEvents = sqliteTable(
+  'session_events',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    sessionId: text('session_id')
+      .notNull()
+      .references(() => examSessions.id, { onDelete: 'cascade' }),
+    type: text('type').notNull(), // focus_lost, focus_regained
+    at: text('at').notNull(),
+  },
+  (table) => [
+    index('idx_session_events_session').on(table.sessionId),
+    index('idx_session_events_at').on(table.at),
+  ],
+);
+
 export const outbox = sqliteTable(
   'outbox',
   {

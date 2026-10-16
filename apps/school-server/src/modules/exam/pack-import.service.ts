@@ -129,6 +129,11 @@ export class PackImportService {
     return { pack: record, manifest };
   }
 
+  /** Get the directory path for a pack (for asset serving). */
+  getPackDir(packId: string): string {
+    return join(this.config.examPackFolders.active, packId);
+  }
+
   /** Re-open an imported pack. Set `withKeys` to decrypt marking keys too. */
   async loadPack(
     packId: string,

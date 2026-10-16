@@ -34,9 +34,15 @@ const submitSchema = z.object({
   changes: z.array(answerChangeSchema).default([]),
 });
 
+const eventSchema = z.object({
+  type: z.enum(['focus_lost', 'focus_regained']),
+  at: z.string().min(1),
+});
+
 export type LoginDto = z.infer<typeof loginSchema>;
 export type AnswersDto = z.infer<typeof answersSchema>;
 export type SubmitDto = z.infer<typeof submitSchema>;
+export type EventDto = z.infer<typeof eventSchema>;
 
 /** Validate a body or throw a `VALIDATION_FAILED` problem (API spec 1.4). */
 export function parseOrThrow<T>(schema: ZodType<T>, value: unknown): T {
@@ -51,3 +57,4 @@ export function parseOrThrow<T>(schema: ZodType<T>, value: unknown): T {
 export const parseLogin = (value: unknown): LoginDto => parseOrThrow(loginSchema, value ?? {});
 export const parseAnswers = (value: unknown): AnswersDto => parseOrThrow(answersSchema, value ?? {});
 export const parseSubmit = (value: unknown): SubmitDto => parseOrThrow(submitSchema, value ?? {});
+export const parseEvent = (value: unknown): EventDto => parseOrThrow(eventSchema, value ?? {});

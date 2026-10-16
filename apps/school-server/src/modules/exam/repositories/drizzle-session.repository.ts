@@ -1,8 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, lte } from 'drizzle-orm';
+import { and, eq, lte, sql } from 'drizzle-orm';
 import { DrizzleSqliteService } from '../../../shared/database/drizzle-sqlite.service';
 import type { SqliteDB } from '../../../shared/database/drizzle-sqlite.service';
-import { answers, examSessions, outbox, results, sittings } from '../../../shared/database/schema';
+import { answers, examSessions, outbox, results, sittings, sessionEvents } from '../../../shared/database/schema';
 import { toAnswerRecord, toSessionRecord } from '../domain/mappers';
 import type {
   AnswerChange,
@@ -270,5 +270,24 @@ export class DrizzleSessionRepository implements SessionRepository {
       .innerJoin(sittings, eq(examSessions.sittingId, sittings.id))
       .where(and(eq(examSessions.status, 'in_progress'), lte(sittings.windowEnd, now)));
     return rows.map((row) => toSessionRecord(row.session));
+  }
+
+  async incrementFocusLostCount(sessionId: string): Promise<void> {
+    await this.db
+      .update(examSessions)
+      .set({ focusLostCount: sql`${examSessions.focusLostCount} + 1` })
+      .where(eq(examSessions.id, sessionId));
+  }
+
+  async insertSessionEvent(input: {
+    sessionId: string;
+    type: string;
+    at: string;
+  }): Promise<void> {
+    await this.db.insert(sessionEvents).values({
+      sessionId: input.sessionId,
+      type: input.type,
+      at: input.at,
+    });
   }
 }

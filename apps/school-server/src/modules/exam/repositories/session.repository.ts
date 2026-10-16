@@ -63,4 +63,14 @@ export interface SessionRepository {
   listExpired(now: string): Promise<SessionRecord[]>;
   /** In-progress sessions whose sitting window has closed. */
   listPastWindowEnd(now: string): Promise<SessionRecord[]>;
+
+  /** Increment focus_lost_count for a session (Section 16.10). */
+  incrementFocusLostCount(sessionId: string): Promise<void>;
+
+  /** Insert a session event (focus_lost, focus_regained). */
+  insertSessionEvent(input: {
+    sessionId: string;
+    type: string;
+    at: string;
+  }): Promise<void>;
 }
