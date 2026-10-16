@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 import type { DrizzleDB } from '../../../shared/database/drizzle.service';
+import { DrizzleService } from '../../../shared/database/drizzle.service';
 import { guardianships } from '@cbt/shared-types';
 import type { GuardianshipRecord } from '../domain/types';
 import { mapGuardianshipFromDb } from '../domain/mappers';
@@ -16,7 +17,11 @@ export interface GuardianshipRepository {
 
 @Injectable()
 export class DrizzleGuardianshipRepository implements GuardianshipRepository {
-  constructor(private readonly db: DrizzleDB) {}
+  constructor(@Inject(DrizzleService) private readonly drizzle: DrizzleService) {}
+
+  private get db(): DrizzleDB {
+    return this.drizzle.getDb();
+  }
 
   async findByGuardianId(guardianId: string): Promise<GuardianshipRecord[]> {
     const rows = await this.db.query.guardianships.findMany({

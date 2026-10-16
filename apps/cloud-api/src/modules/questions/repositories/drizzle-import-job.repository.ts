@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { eq, asc } from 'drizzle-orm';
 import crypto from 'node:crypto';
 import type { DrizzleDB } from '../../../shared/database/drizzle.service';
+import { DrizzleService } from '../../../shared/database/drizzle.service';
 import { importJobs } from '@cbt/shared-types';
 import type { ImportJobDomainRecord, CreateImportJobDto, UpdateImportJobDto } from '../domain/types';
 import { mapImportJobFromDb } from '../domain/mappers';
@@ -9,7 +10,11 @@ import type { ImportJobRepository } from './import-job.repository';
 
 @Injectable()
 export class DrizzleImportJobRepository implements ImportJobRepository {
-  constructor(private readonly db: DrizzleDB) {}
+  constructor(@Inject(DrizzleService) private readonly drizzle: DrizzleService) {}
+
+  private get db(): DrizzleDB {
+    return this.drizzle.getDb();
+  }
 
   async findById(id: string): Promise<ImportJobDomainRecord | null> {
     const row = await this.db.query.importJobs.findFirst({

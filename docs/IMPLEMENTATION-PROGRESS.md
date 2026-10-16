@@ -158,8 +158,10 @@ key produce byte-identical packs.
 
 ### Repository Pattern
 - Repository interfaces defined separately from Drizzle implementations
-- Cloud repositories receive `DrizzleDB` type from `drizzle.service.ts`
-- Services inject repositories and use optional dependencies with non-null assertions
+- Cloud repositories inject `DrizzleService` and resolve the handle lazily via a
+  `get db()` getter (`DrizzleDB` stays a type-only import)
+- Services inject repositories through `@Optional() @Inject(Drizzle*Repository)`
+  tokens and use non-null assertions, since providers only exist when `DATABASE_URL` is set
 - All repository methods use explicit school scoping
 
 ### Audit Logging
@@ -252,20 +254,16 @@ pnpm --filter @cbt/cloud-api test
 
 6. **Test Framework:** Use Vitest, not Jest. Use `vi.fn()` for mocks.
 
-7. **Repository DI (known gap):** The auth module injects `DrizzleService` into its
-   repositories and exposes repositories/services through explicit tokens. The
-   `users`, `questions` and `exams` modules still declare repository-interface
-   constructor parameters without `@Inject` tokens and repositories that take a
-   raw `DrizzleDB`, so they are not actually resolvable when `DATABASE_URL` is set.
-   The Phase 6B repositories (`drizzle-exam-pack`, `drizzle-pack-source`) follow the
-   auth pattern and inject `DrizzleService`. The pre-existing gap is documented in
-   TECHNICAL-REFERENCE "Known Limitations" and should be fixed before running the
-   exams module against a real database.
+7. **Repository DI (resolved):** every Drizzle repository injects `DrizzleService`
+   and reaches the handle through a lazy `get db()` getter; the `users`, `questions`
+   and `exams` services declare their repository-interface parameters with
+   `@Optional() @Inject(Drizzle*Repository)`, and those modules import `AuthModule`
+   for `AuditService` and the guard dependencies. `app.database.module.spec.ts`
+   boots the full graph with `DATABASE_URL` set, and `main.ts` was smoke-tested
+   against a dummy URL (routes mapped, `/health` 200).
 
 ## Next Immediate Steps
 
-1. Fix repository/service DI for the `users`, `questions` and `exams` modules
-   (inject `DrizzleService`, use explicit tokens) so they boot with `DATABASE_URL`.
-2. Verify pack generation against a real PostgreSQL database with seeded questions.
-3. Begin Phase 6C (school server exam delivery): pack loader + `verifyPack` wiring,
+1. Verify pack generation against a real PostgreSQL database with seeded questions.
+2. Begin Phase 6C (school server exam delivery): pack loader + `verifyPack` wiring,
    session management, auto-save.

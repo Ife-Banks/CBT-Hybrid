@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { eq, and } from 'drizzle-orm';
 import type { DrizzleDB } from '../../../shared/database/drizzle.service';
+import { DrizzleService } from '../../../shared/database/drizzle.service';
 import { questionAssets } from '@cbt/shared-types';
 import type { QuestionAssetDomainRecord, CreateQuestionAssetDto } from '../domain/types';
 import { mapQuestionAssetFromDb } from '../domain/mappers';
@@ -8,7 +9,11 @@ import type { QuestionAssetRepository } from './question-asset.repository';
 
 @Injectable()
 export class DrizzleQuestionAssetRepository implements QuestionAssetRepository {
-  constructor(private readonly db: DrizzleDB) {}
+  constructor(@Inject(DrizzleService) private readonly drizzle: DrizzleService) {}
+
+  private get db(): DrizzleDB {
+    return this.drizzle.getDb();
+  }
 
   async findByQuestionId(questionId: string): Promise<QuestionAssetDomainRecord[]> {
     const rows = await this.db.query.questionAssets.findMany({

@@ -67,11 +67,11 @@ Phase 6B is complete. Next is Phase 6C:
 4. Implement session recovery, debounced saves and backoff
 5. End-to-end lifecycle tests
 
-**Known gap to fix first:** the `users`, `questions` and `exams` modules declare
-repository-interface constructor parameters without `@Inject` tokens and use
-repositories that take a raw `DrizzleDB`, so they do not boot when `DATABASE_URL`
-is set. Follow the auth module pattern (inject `DrizzleService`, expose repositories
-through tokens).
+**Repository DI:** fixed. Every Drizzle repository injects `DrizzleService` (never a
+raw `DrizzleDB`), the `users`/`questions`/`exams` services declare repository
+parameters with `@Optional() @Inject(Drizzle*Repository)`, and those modules import
+`AuthModule` for `AuditService` and the guard dependencies. Verified by
+`app.database.module.spec.ts`, which boots the whole graph with `DATABASE_URL` set.
 
 ## Reference Implementation Patterns
 

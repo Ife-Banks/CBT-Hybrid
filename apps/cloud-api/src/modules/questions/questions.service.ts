@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import type {
   SubjectRepository,
   LevelRepository,
@@ -6,6 +6,14 @@ import type {
   AssetRepository,
   QuestionAssetRepository,
   ImportJobRepository,
+} from './repositories';
+import {
+  DrizzleAssetRepository,
+  DrizzleImportJobRepository,
+  DrizzleLevelRepository,
+  DrizzleQuestionAssetRepository,
+  DrizzleQuestionRepository,
+  DrizzleSubjectRepository,
 } from './repositories';
 import type {
   CreateSubjectDto,
@@ -36,13 +44,14 @@ import { AuditService } from '../auth/audit/audit.service';
 @Injectable()
 export class QuestionsService {
   constructor(
-    private readonly subjectRepo?: SubjectRepository,
-    private readonly levelRepo?: LevelRepository,
-    private readonly questionRepo?: QuestionRepository,
-    private readonly assetRepo?: AssetRepository,
+    @Optional() @Inject(DrizzleSubjectRepository) private readonly subjectRepo?: SubjectRepository,
+    @Optional() @Inject(DrizzleLevelRepository) private readonly levelRepo?: LevelRepository,
+    @Optional() @Inject(DrizzleQuestionRepository) private readonly questionRepo?: QuestionRepository,
+    @Optional() @Inject(DrizzleAssetRepository) private readonly assetRepo?: AssetRepository,
+    @Optional() @Inject(DrizzleQuestionAssetRepository)
     private readonly questionAssetRepo?: QuestionAssetRepository,
-    private readonly importJobRepo?: ImportJobRepository,
-    private readonly auditService?: AuditService,
+    @Optional() @Inject(DrizzleImportJobRepository) private readonly importJobRepo?: ImportJobRepository,
+    @Optional() private readonly auditService?: AuditService,
   ) {}
 
   // Subject Management

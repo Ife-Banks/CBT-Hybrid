@@ -18,11 +18,18 @@ export interface ExamRepository {
 **Drizzle Implementation:**
 ```typescript
 // Implement in repositories/drizzle-*.repository.ts
+import { Inject, Injectable } from '@nestjs/common';
 import type { DrizzleDB } from '../../../shared/database/drizzle.service';
+import { DrizzleService } from '../../../shared/database/drizzle.service';
 import { exams } from '@cbt/shared-types';
 
+@Injectable()
 export class DrizzleExamRepository implements ExamRepository {
-  constructor(private readonly db: DrizzleDB) {}
+  constructor(@Inject(DrizzleService) private readonly drizzle: DrizzleService) {}
+
+  private get db(): DrizzleDB {
+    return this.drizzle.getDb();
+  }
 
   async create(dto: CreateExamDto, schoolId: string, createdBy: string): Promise<ExamDomainRecord> {
     const [row] = await this.db
@@ -34,16 +41,21 @@ export class DrizzleExamRepository implements ExamRepository {
 }
 ```
 
+The database handle is resolved lazily through `DrizzleService.getDb()`, which
+connects during `onModuleInit`. Never inject a raw `DrizzleDB`: it is a type
+alias with no runtime token, so Nest cannot resolve it.
+
 **Service Injection:**
 ```typescript
-// In service constructor - use optional with non-null assertion
+// Repository interfaces are TypeScript types, so Nest needs an explicit token.
+// Use @Optional() because the repository providers only exist when DATABASE_URL is set.
 constructor(
-  private readonly examRepo: ExamRepository,
-  private readonly auditService: AuditService,
+  @Optional() @Inject(DrizzleExamRepository) private readonly examRepo?: ExamRepository,
+  @Optional() private readonly auditService?: AuditService,
 ) {}
 
 // Usage - non-null assertion since it's guaranteed when DATABASE_URL is set
-const exam = await this.examRepo.findById(id)!;
+const exam = await this.examRepo!.findById(id);
 ```
 
 ### Audit Logging Pattern
@@ -298,30 +310,34 @@ async create(
 ```typescript
 @Module({
   imports: [
-    // Only load DatabaseModule if DATABASE_URL is set
-    ...(process.env.DATABASE_URL ? [DatabaseModule] : []),
-    AuditModule,
+    // Only load DatabaseModule/AuthModule if DATABASE_URL is set.
+    // AuthModule supplies AuditService and the guards' dependencies.
+    ...(process.env.DATABASE_URL ? [DatabaseModule, AuthModule] : []),
   ],
   controllers: [
     // Only register controllers if DATABASE_URL is set
     ...(process.env.DATABASE_URL ? [ExamsController] : []),
   ],
   providers: [
-    // Only provide services if DATABASE_URL is set
+    // Only provide services and their Drizzle repositories if DATABASE_URL is set.
+    // Repositories are concrete classes so they work as their own DI token.
     ...(process.env.DATABASE_URL
       ? [
           ExamsService,
           ExamBuilderService,
           ExamSchedulerService,
-          ClassRepository,
-          ExamRepository,
-          SittingRepository,
+          DrizzleClassRepository,
+          DrizzleExamRepository,
+          DrizzleSittingRepository,
         ]
       : []),
   ],
 })
 export class ExamsModule {}
 ```
+
+The `process.env.DATABASE_URL` checks run while the decorator is evaluated
+(import time), so the variable must be set before `AppModule` is imported.
 
 ## Common Imports
 
@@ -330,9 +346,20 @@ export class ExamsModule {}
 import { exams, classes, sittings } from '@cbt/shared-types';
 ```
 
-**DrizzleDB from local service:**
+**DrizzleService and its `DrizzleDB` type from the local service:**
 ```typescript
 import type { DrizzleDB } from '../../../shared/database/drizzle.service';
+import { DrizzleService } from '../../../shared/database/drizzle.service';
+
+// Repositories inject the service and reach the handle through the getter.
+@Injectable()
+export class DrizzleFooRepository implements FooRepository {
+  constructor(@Inject(DrizzleService) private readonly drizzle: DrizzleService) {}
+
+  private get db(): DrizzleDB {
+    return this.drizzle.getDb();
+  }
+}
 ```
 
 **NestJS Common:**
@@ -448,10 +475,14 @@ pnpm --filter @cbt/cloud-api typecheck
 1. **Filter-based question selection** in ExamBuilderService is not implemented (throws ConflictException)
 2. **Random question selection** in ExamBuilderService is not implemented (throws ConflictException)
 3. **Import-based question selection** in ExamBuilderService is not implemented (throws ConflictException)
-4. E2E tests for new modules (UsersModule, QuestionsModule, ExamsModule) are not yet updated
-5. Real database behavior with PostgreSQL environment not yet verified
-6. Pack generation and signing (Phase 6B) not yet implemented
-7. School server exam delivery (Phase 6C) not yet implemented
+4. Real database behavior with PostgreSQL environment not yet verified
+5. School server exam delivery (Phase 6C) not yet implemented
+
+Repository DI was fixed after Phase 6B: every Drizzle repository injects
+`DrizzleService`, the `users`/`questions`/`exams` services use explicit
+`@Optional() @Inject(...)` tokens, and those modules import `AuthModule` for
+`AuditService` and the guard dependencies. `app.database.module.spec.ts` boots
+the full dependency graph with `DATABASE_URL` set to guard against regressions.
 
 ## External Dependencies
 

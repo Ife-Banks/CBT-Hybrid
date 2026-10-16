@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { eq, and, desc } from 'drizzle-orm';
 import type { DrizzleDB } from '../../../shared/database/drizzle.service';
+import { DrizzleService } from '../../../shared/database/drizzle.service';
 import { exams, examQuestions } from '@cbt/shared-types';
 import type { ExamRepository } from './exam.repository';
 import type { ExamDomainRecord, CreateExamDto, UpdateExamDto } from '../domain/types';
@@ -9,7 +10,11 @@ import crypto from 'node:crypto';
 
 @Injectable()
 export class DrizzleExamRepository implements ExamRepository {
-  constructor(private readonly db: DrizzleDB) {}
+  constructor(@Inject(DrizzleService) private readonly drizzle: DrizzleService) {}
+
+  private get db(): DrizzleDB {
+    return this.drizzle.getDb();
+  }
 
   async create(dto: CreateExamDto, schoolId: string, createdBy: string): Promise<ExamDomainRecord> {
     const id = crypto.randomUUID();

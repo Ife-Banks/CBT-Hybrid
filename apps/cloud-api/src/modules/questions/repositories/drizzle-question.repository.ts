@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { eq, and, desc, asc, sql } from 'drizzle-orm';
 import crypto from 'node:crypto';
 import type { DrizzleDB } from '../../../shared/database/drizzle.service';
+import { DrizzleService } from '../../../shared/database/drizzle.service';
 import { questions } from '@cbt/shared-types';
 import type { QuestionDomainRecord, CreateQuestionDto, UpdateQuestionDto, QuestionSearchParams } from '../domain/types';
 import { mapQuestionFromDb } from '../domain/mappers';
@@ -9,7 +10,11 @@ import type { QuestionRepository } from './question.repository';
 
 @Injectable()
 export class DrizzleQuestionRepository implements QuestionRepository {
-  constructor(private readonly db: DrizzleDB) {}
+  constructor(@Inject(DrizzleService) private readonly drizzle: DrizzleService) {}
+
+  private get db(): DrizzleDB {
+    return this.drizzle.getDb();
+  }
 
   async findById(id: string): Promise<QuestionDomainRecord | null> {
     const row = await this.db.query.questions.findFirst({

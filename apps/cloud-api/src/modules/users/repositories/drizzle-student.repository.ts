@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq, asc } from 'drizzle-orm';
 import crypto from 'node:crypto';
 import type { DrizzleDB } from '../../../shared/database/drizzle.service';
+import { DrizzleService } from '../../../shared/database/drizzle.service';
 import { students, studentCodes } from '@cbt/shared-types';
 import type { StudentRecord, CreateStudentDto, UpdateStudentDto } from '../domain/types';
 import { mapStudentFromDb } from '../domain/mappers';
@@ -17,7 +18,11 @@ export interface StudentRepository {
 
 @Injectable()
 export class DrizzleStudentRepository implements StudentRepository {
-  constructor(private readonly db: DrizzleDB) {}
+  constructor(@Inject(DrizzleService) private readonly drizzle: DrizzleService) {}
+
+  private get db(): DrizzleDB {
+    return this.drizzle.getDb();
+  }
 
   async findById(id: string): Promise<StudentRecord | null> {
     const row = await this.db.query.students.findFirst({

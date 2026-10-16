@@ -1,13 +1,14 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import type { ExamRepository } from './repositories';
+import { DrizzleExamRepository } from './repositories';
 import type { ExamDomainRecord, QuestionSelection } from './domain/types';
 import { AuditService } from '../auth/audit/audit.service';
 
 @Injectable()
 export class ExamBuilderService {
   constructor(
-    private readonly examRepo?: ExamRepository,
-    private readonly auditService?: AuditService,
+    @Optional() @Inject(DrizzleExamRepository) private readonly examRepo?: ExamRepository,
+    @Optional() private readonly auditService?: AuditService,
   ) {}
 
   /**

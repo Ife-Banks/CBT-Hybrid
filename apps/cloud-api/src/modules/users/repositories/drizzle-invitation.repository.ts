@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq, desc } from 'drizzle-orm';
 import crypto from 'node:crypto';
 import type { DrizzleDB } from '../../../shared/database/drizzle.service';
+import { DrizzleService } from '../../../shared/database/drizzle.service';
 import { invitations } from '@cbt/shared-types';
 import type { InvitationRecord, CreateInvitationDto } from '../domain/types';
 import { mapInvitationFromDb } from '../domain/mappers';
@@ -21,7 +22,11 @@ export interface InvitationRepository {
 
 @Injectable()
 export class DrizzleInvitationRepository implements InvitationRepository {
-  constructor(private readonly db: DrizzleDB) {}
+  constructor(@Inject(DrizzleService) private readonly drizzle: DrizzleService) {}
+
+  private get db(): DrizzleDB {
+    return this.drizzle.getDb();
+  }
 
   async findById(id: string): Promise<InvitationRecord | null> {
     const row = await this.db.query.invitations.findFirst({

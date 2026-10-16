@@ -1,8 +1,13 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import type {
   ClassRepository,
   ExamRepository,
   SittingRepository,
+} from './repositories';
+import {
+  DrizzleClassRepository,
+  DrizzleExamRepository,
+  DrizzleSittingRepository,
 } from './repositories';
 import type {
   ClassDomainRecord,
@@ -19,10 +24,10 @@ import { AuditService } from '../auth/audit/audit.service';
 @Injectable()
 export class ExamsService {
   constructor(
-    private readonly classRepo?: ClassRepository,
-    private readonly examRepo?: ExamRepository,
-    private readonly sittingRepo?: SittingRepository,
-    private readonly auditService?: AuditService,
+    @Optional() @Inject(DrizzleClassRepository) private readonly classRepo?: ClassRepository,
+    @Optional() @Inject(DrizzleExamRepository) private readonly examRepo?: ExamRepository,
+    @Optional() @Inject(DrizzleSittingRepository) private readonly sittingRepo?: SittingRepository,
+    @Optional() private readonly auditService?: AuditService,
   ) {}
 
   // Class management

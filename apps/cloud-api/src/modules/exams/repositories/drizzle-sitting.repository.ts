@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { eq, and, desc } from 'drizzle-orm';
 import type { DrizzleDB } from '../../../shared/database/drizzle.service';
+import { DrizzleService } from '../../../shared/database/drizzle.service';
 import { sittings } from '@cbt/shared-types';
 import type { SittingRepository } from './sitting.repository';
 import type { SittingDomainRecord, CreateSittingDto, UpdateSittingDto } from '../domain/types';
@@ -9,7 +10,11 @@ import crypto from 'node:crypto';
 
 @Injectable()
 export class DrizzleSittingRepository implements SittingRepository {
-  constructor(private readonly db: DrizzleDB) {}
+  constructor(@Inject(DrizzleService) private readonly drizzle: DrizzleService) {}
+
+  private get db(): DrizzleDB {
+    return this.drizzle.getDb();
+  }
 
   async create(dto: CreateSittingDto, schoolId: string): Promise<SittingDomainRecord> {
     const id = crypto.randomUUID();

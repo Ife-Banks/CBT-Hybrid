@@ -14,12 +14,14 @@ import { LocalPackStore, PackStore } from './pack-store';
 import { ExamsController } from './exams.controller';
 import { PacksController } from './packs.controller';
 import { DatabaseModule } from '../../shared/database/database.module';
-import { AuditService } from '../auth/audit/audit.service';
+import { AuthModule } from '../auth/auth.module';
 
 const databaseUrl = process.env.DATABASE_URL;
 
 @Module({
-  imports: databaseUrl ? [DatabaseModule] : [],
+  // AuthModule supplies the exported AuditService and the guards' dependencies
+  // (SessionService, USER_REPOSITORY, AbilityFactory) used by the controllers.
+  imports: databaseUrl ? [DatabaseModule, AuthModule] : [],
   controllers: databaseUrl ? [ExamsController, PacksController] : [],
   providers: databaseUrl
     ? [
@@ -33,7 +35,6 @@ const databaseUrl = process.env.DATABASE_URL;
         ExamBuilderService,
         ExamSchedulerService,
         ExamPackService,
-        AuditService,
       ]
     : [],
   exports: databaseUrl

@@ -1,14 +1,15 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import type { SittingRepository, ExamRepository } from './repositories';
+import { DrizzleExamRepository, DrizzleSittingRepository } from './repositories';
 import type { SittingDomainRecord, CreateSittingDto } from './domain/types';
 import { AuditService } from '../auth/audit/audit.service';
 
 @Injectable()
 export class ExamSchedulerService {
   constructor(
-    private readonly sittingRepo?: SittingRepository,
-    private readonly examRepo?: ExamRepository,
-    private readonly auditService?: AuditService,
+    @Optional() @Inject(DrizzleSittingRepository) private readonly sittingRepo?: SittingRepository,
+    @Optional() @Inject(DrizzleExamRepository) private readonly examRepo?: ExamRepository,
+    @Optional() private readonly auditService?: AuditService,
   ) {}
 
   /**

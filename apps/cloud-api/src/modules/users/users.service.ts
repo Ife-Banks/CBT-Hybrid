@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { StudentCodeGenerator, isValidCodeBody } from '@cbt/exam-core';
 import * as argon2 from 'argon2';
 import crypto from 'node:crypto';
@@ -8,6 +8,13 @@ import type {
   GuardianRepository,
   GuardianshipRepository,
   InvitationRepository,
+} from './repositories';
+import {
+  DrizzleGuardianRepository,
+  DrizzleGuardianshipRepository,
+  DrizzleInvitationRepository,
+  DrizzleStudentCodeRepository,
+  DrizzleStudentRepository,
 } from './repositories';
 import type {
   CreateStudentDto,
@@ -26,11 +33,13 @@ export class UsersService {
   private readonly codeGenerator = new StudentCodeGenerator();
 
   constructor(
-    private readonly studentRepo?: StudentRepository,
+    @Optional() @Inject(DrizzleStudentRepository) private readonly studentRepo?: StudentRepository,
+    @Optional() @Inject(DrizzleStudentCodeRepository)
     private readonly studentCodeRepo?: StudentCodeRepository,
-    private readonly guardianRepo?: GuardianRepository,
+    @Optional() @Inject(DrizzleGuardianRepository) private readonly guardianRepo?: GuardianRepository,
+    @Optional() @Inject(DrizzleGuardianshipRepository)
     private readonly guardianshipRepo?: GuardianshipRepository,
-    private readonly invitationRepo?: InvitationRepository,
+    @Optional() @Inject(DrizzleInvitationRepository) private readonly invitationRepo?: InvitationRepository,
   ) {}
 
   // Student Management
