@@ -339,8 +339,23 @@ metrics (the cloud schema has no device table).
 **Migrations:** `0008_oval_falcon.sql` (adds the `audit_outcome` enum and the
 `audit_logs` table with its indexes).
 
-**Deferred (by decision):** the `attendance` export (no attendance model) and
-student `anonymise`/`data-export` (§5, US-16.2 — a separate retention feature).
+**Deferred (by decision):** the `attendance` export (no attendance model).
+
+### Student data requests (US-16.2) ✅
+**Status:** Complete — the two §5 data-protection endpoints.
+
+**Deliverables:**
+- **`POST /students/:id/data-export`**: returns a ZIP of everything held about a
+  student (`student.json`, `guardians.json`, `results.csv`, `README.txt`) using
+  the exam-core stored-ZIP writer. School Admin only; scoped to the caller's
+  school; records a `data.exported` audit entry.
+- **`POST /students/:id/anonymise`**: replaces the identity fields (name, gender,
+  date of birth, photo, admission number → `ANON-…` pseudonym) and keeps scores
+  only when `retention.results_years_after_leaving > 0`; a rule of zero also
+  purges the student's results and submissions. Records a `student.anonymised`
+  audit entry.
+- New `student-data` module with a `STUDENT_DATA_REPOSITORY` port (Drizzle +
+  in-memory), reusing the settings retention rule and the audit log.
 
 ## Technical Patterns Established
 
