@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, count, desc, eq, inArray } from 'drizzle-orm';
 import {
   classes,
   examClasses,
@@ -7,6 +7,8 @@ import {
   exams,
   guardians,
   guardianships,
+  importJobs,
+  invitations,
   questionOptions,
   questions,
   sittings,
@@ -83,6 +85,46 @@ export class DrizzleDirectoryRepository implements DirectoryRepository {
       showScoreToStudent: exam.showScoreToStudent,
       createdBy: exam.createdBy,
     };
+  }
+
+  async listExams(schoolId: string, options: { createdBy?: string } = {}): Promise<ExamInfo[]> {
+    const where = options.createdBy
+      ? and(eq(exams.schoolId, schoolId), eq(exams.createdBy, options.createdBy))
+      : eq(exams.schoolId, schoolId);
+    const rows = await this.db
+      .select({ exam: exams, subjectName: subjects.name })
+      .from(exams)
+      .leftJoin(subjects, eq(subjects.id, exams.subjectId))
+      .where(where);
+    if (rows.length === 0) return [];
+
+    const links = await this.db
+      .select({ examId: examClasses.examId, classId: examClasses.classId })
+      .from(examClasses)
+      .where(
+        inArray(
+          examClasses.examId,
+          rows.map((row) => row.exam.id),
+        ),
+      );
+    const classIdsByExam = new Map<string, string[]>();
+    for (const link of links) {
+      const list = classIdsByExam.get(link.examId) ?? [];
+      list.push(link.classId);
+      classIdsByExam.set(link.examId, list);
+    }
+
+    return rows.map(({ exam, subjectName }) => ({
+      id: exam.id,
+      schoolId: exam.schoolId,
+      title: exam.title,
+      subjectId: exam.subjectId,
+      subjectName: subjectName ?? null,
+      classIds: classIdsByExam.get(exam.id) ?? [],
+      passMarkPct: num(exam.passMarkPct),
+      showScoreToStudent: exam.showScoreToStudent,
+      createdBy: exam.createdBy,
+    }));
   }
 
   async listExamQuestions(examId: string): Promise<ExamQuestionKeyInfo[]> {
@@ -187,6 +229,37 @@ export class DrizzleDirectoryRepository implements DirectoryRepository {
     };
   }
 
+  async listSittings(schoolId: string): Promise<SittingInfo[]> {
+    const rows = await this.db.select().from(sittings).where(eq(sittings.schoolId, schoolId));
+    return rows.map((row) => ({
+      id: row.id,
+      schoolId: row.schoolId,
+      examId: row.examId,
+      classId: row.classId,
+      status: row.status,
+    }));
+  }
+
+  async countPendingInvitations(schoolId: string): Promise<number> {
+    const [row] = await this.db
+      .select({ value: count() })
+      .from(invitations)
+      .where(
+        and(eq(invitations.schoolId, schoolId), inArray(invitations.status, ['pending', 'sent'])),
+      );
+    return Number(row?.value ?? 0);
+  }
+
+  async countActiveImports(schoolId: string): Promise<number> {
+    const [row] = await this.db
+      .select({ value: count() })
+      .from(importJobs)
+      .where(
+        and(eq(importJobs.schoolId, schoolId), inArray(importJobs.status, ['pending', 'processing'])),
+      );
+    return Number(row?.value ?? 0);
+  }
+
   async getGuardian(guardianId: string): Promise<GuardianInfo | null> {
     const [row] = await this.db
       .select()
@@ -239,6 +312,7 @@ function mapGuardian(row: {
   fullName: string;
   email: string | null;
   phoneE164: string | null;
+  notificationPrefs?: { email?: boolean; sms?: boolean; whatsapp?: boolean; inApp?: boolean };
 }): GuardianInfo {
   return {
     id: row.id,
@@ -247,6 +321,7 @@ function mapGuardian(row: {
     fullName: row.fullName,
     email: row.email,
     phoneE164: row.phoneE164,
+    notificationPrefs: row.notificationPrefs ?? {},
   };
 }
 

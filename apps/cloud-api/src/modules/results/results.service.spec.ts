@@ -1,16 +1,21 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ResultsService } from './results.service';
 import { GradeScaleService } from './grade-scale.service';
 import {
   InMemoryDirectoryRepository,
   InMemoryGradeScaleRepository,
+  InMemoryKeyCorrectionStore,
   InMemoryRemarkRunRepository,
   InMemoryResultRepository,
   InMemorySubmissionRepository,
 } from './repositories';
 import { InMemoryNotificationRepository } from '../notifications/repositories/notification.repository';
 import { NotificationsService } from '../notifications/notifications.service';
+import { SettingsService } from '../settings/settings.service';
+import { InMemorySchoolSettingsRepository } from '../settings/settings.repository';
+import type { AuditService } from '../auth/audit/audit.service';
+import type { ExamPackService } from '../exams/exam-pack.service';
 
 const SCHOOL = 'school-1';
 
@@ -107,6 +112,9 @@ function submissionInput(studentId = 'student-1', sessionId = 'session-1') {
   };
 }
 
+const ADMIN = { id: 'admin-1', role: 'school_admin' } as const;
+const TEACHER = { id: 'teacher-1', role: 'teacher' } as const;
+
 describe('ResultsService', () => {
   let results: InMemoryResultRepository;
   let submissions: InMemorySubmissionRepository;
@@ -115,6 +123,11 @@ describe('ResultsService', () => {
   let gradeScales: GradeScaleService;
   let notifications: NotificationsService;
   let notificationRepo: InMemoryNotificationRepository;
+  let settingsRepo: InMemorySchoolSettingsRepository;
+  let settings: SettingsService;
+  let keyCorrections: InMemoryKeyCorrectionStore;
+  let audit: { record: ReturnType<typeof vi.fn> };
+  let packService: { generatePack: ReturnType<typeof vi.fn> };
   let service: ResultsService;
 
   beforeEach(async () => {
@@ -125,6 +138,11 @@ describe('ResultsService', () => {
     gradeScales = new GradeScaleService(new InMemoryGradeScaleRepository());
     notificationRepo = new InMemoryNotificationRepository();
     notifications = new NotificationsService(notificationRepo);
+    settingsRepo = new InMemorySchoolSettingsRepository();
+    settings = new SettingsService(settingsRepo);
+    keyCorrections = new InMemoryKeyCorrectionStore();
+    audit = { record: vi.fn() };
+    packService = { generatePack: vi.fn().mockResolvedValue({ id: 'pack-2', version: 2, keyVersion: 2 }) };
     seedDirectory(directory);
     service = new ResultsService(
       results,
@@ -133,6 +151,10 @@ describe('ResultsService', () => {
       directory,
       gradeScales,
       notifications,
+      audit as unknown as AuditService,
+      settings,
+      keyCorrections,
+      packService as unknown as ExamPackService,
     );
     await gradeScales.ensureDefault(SCHOOL);
   });
@@ -178,12 +200,13 @@ describe('ResultsService', () => {
     expect(first).toEqual({ reviewed: 1, skipped: 0 });
     const second = await service.reviewResults(SCHOOL, 'teacher-1', { resultIds: [result.id] });
     expect(second).toEqual({ reviewed: 0, skipped: 1 });
+    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'results.reviewed' }));
   });
 
   it('refuses to release a result that has not been reviewed', async () => {
     await service.processSubmission(submissionInput());
     await expect(
-      service.releaseResults(SCHOOL, 'admin-1', { examId: 'exam-1' }),
+      service.releaseResults(SCHOOL, ADMIN, { examId: 'exam-1' }),
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
@@ -191,7 +214,7 @@ describe('ResultsService', () => {
     const result = await service.processSubmission(submissionInput());
     await service.reviewResults(SCHOOL, 'teacher-1', { resultIds: [result.id] });
 
-    const released = await service.releaseResults(SCHOOL, 'admin-1', { examId: 'exam-1' });
+    const released = await service.releaseResults(SCHOOL, ADMIN, { examId: 'exam-1' });
     expect(released).toEqual({ released: 1, notificationsQueued: 1 });
 
     const stored = await results.findById(result.id);
@@ -202,12 +225,26 @@ describe('ResultsService', () => {
     expect(queued).toHaveLength(1);
     expect(queued[0]).toMatchObject({ template: 'results_released', channel: 'email' });
     expect(JSON.stringify(queued[0]!.payload)).not.toContain('44.44');
+    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'results.released' }));
+  });
+
+  it('only lets a teacher release when the school policy allows it', async () => {
+    const result = await service.processSubmission(submissionInput());
+    await service.reviewResults(SCHOOL, 'teacher-1', { resultIds: [result.id] });
+
+    await expect(
+      service.releaseResults(SCHOOL, TEACHER, { resultIds: [result.id] }, { notify: false }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    await settings.update(SCHOOL, { release_policy: 'class_teacher' });
+    const released = await service.releaseResults(SCHOOL, TEACHER, { resultIds: [result.id] }, { notify: false });
+    expect(released.released).toBe(1);
   });
 
   it('withdraws results and hides their scores from the parent view', async () => {
     const result = await service.processSubmission(submissionInput());
     await service.reviewResults(SCHOOL, 'teacher-1', { resultIds: [result.id] });
-    await service.releaseResults(SCHOOL, 'admin-1', { examId: 'exam-1' }, { notify: false });
+    await service.releaseResults(SCHOOL, ADMIN, { examId: 'exam-1' }, { notify: false });
     const withdrawn = await service.withdrawResults(SCHOOL, 'admin-1', {
       resultIds: [result.id],
       reason: 'Malpractice',
@@ -216,21 +253,56 @@ describe('ResultsService', () => {
     const stored = await results.findById(result.id);
     expect(stored?.status).toBe('withdrawn');
     expect(stored?.withdrawnReason).toBe('Malpractice');
+    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'results.withdrawn' }));
   });
 
-  it('lists results with student names', async () => {
+  it('lists results with student names and pagination metadata', async () => {
     await service.processSubmission(submissionInput());
-    const list = await service.list(SCHOOL, { examId: 'exam-1' });
-    expect(list).toHaveLength(1);
-    expect(list[0]!.student.fullName).toBe('Tunde Bello');
+    const page = await service.list(SCHOOL, { examId: 'exam-1' });
+    expect(page.data).toHaveLength(1);
+    expect(page.data[0]!.student.fullName).toBe('Tunde Bello');
+    expect(page.nextCursor).toBeNull();
+    expect(page.lastSyncedAt).toBeInstanceOf(Date);
   });
 
-  it('returns a result detail with per-answer marks', async () => {
+  it('paginates results with a cursor', async () => {
+    await service.processSubmission(submissionInput('student-1', 'session-1'));
+    await service.processSubmission(submissionInput('student-2', 'session-2'));
+    const first = await service.list(SCHOOL, { examId: 'exam-1' }, { limit: 1 });
+    expect(first.data).toHaveLength(1);
+    expect(first.nextCursor).toBe(first.data[0]!.id);
+    const second = await service.list(SCHOOL, { examId: 'exam-1' }, { limit: 1, cursor: first.nextCursor! });
+    expect(second.data).toHaveLength(1);
+    expect(second.data[0]!.id).not.toBe(first.data[0]!.id);
+    expect(second.nextCursor).toBeNull();
+  });
+
+  it('returns a result detail with per-answer marks and the correct answers', async () => {
     const result = await service.processSubmission(submissionInput());
     const detail = await service.getDetail(SCHOOL, result.id);
     expect(detail.answers).toHaveLength(3);
-    expect(detail.answers.find((answer) => answer.questionId === 'q1')?.marks).toBe(1);
+    const q1 = detail.answers.find((answer) => answer.questionId === 'q1');
+    expect(q1?.marks).toBe(1);
+    expect(q1?.correct).toBe(true);
+    expect(q1?.correctAnswer).toEqual({ type: 'choice', option_ids: ['a'] });
     expect(detail.submitReason).toBe('student');
+  });
+
+  it('hand-marks an essay answer and recomputes the result', async () => {
+    const result = await service.processSubmission(submissionInput());
+    const detail = await service.markAnswer(SCHOOL, 'teacher-1', result.id, 'q3', { marks: 5, comment: 'Good' });
+    expect(detail.score).toBe(9);
+    expect(detail.percent).toBe(100);
+    expect(detail.grade).toBe('A');
+    expect(detail.revision).toBe(2);
+    expect(detail.answers.find((answer) => answer.questionId === 'q3')?.marks).toBe(5);
+  });
+
+  it('rejects marks outside the question range', async () => {
+    const result = await service.processSubmission(submissionInput());
+    await expect(
+      service.markAnswer(SCHOOL, 'teacher-1', result.id, 'q3', { marks: 6 }),
+    ).rejects.toThrow();
   });
 
   it('throws for a result in another school', async () => {
@@ -245,7 +317,7 @@ describe('ResultsService', () => {
     expect(await results.list({ schoolId: SCHOOL })).toHaveLength(0);
   });
 
-  it('previews and applies a key correction, bumping the revision', async () => {
+  it('previews and applies a key correction, versioning the question and bumping the revision', async () => {
     const first = await service.processSubmission(submissionInput('student-1', 'session-1'));
     await service.processSubmission(submissionInput('student-2', 'session-2'));
 
@@ -263,6 +335,11 @@ describe('ResultsService', () => {
       notifyOnRemark: false,
     });
     expect(applied.applied).toBe(2);
+    expect(applied.newQuestionId).toMatch(/^question-version-/);
+    expect(applied.newKeyVersion).toBe(2);
+    expect(applied.packBuilt).toBe(true);
+    expect(packService.generatePack).toHaveBeenCalledWith('exam-1', SCHOOL, 'teacher-1', { keyVersion: 2 });
+    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'key_correction.applied' }));
 
     const stored = await results.findById(first.id);
     expect(stored?.score).toBe(3);
@@ -270,11 +347,11 @@ describe('ResultsService', () => {
     expect(stored?.updated).toBe(true);
   });
 
-  it('notifies guardians when a released result changes', async () => {
+  it('notifies guardians when a released result changes unless notify_on_remark is off', async () => {
     await service.processSubmission(submissionInput());
     const list = await service.list(SCHOOL, {});
-    await service.reviewResults(SCHOOL, 'teacher-1', { resultIds: [list[0]!.id] });
-    await service.releaseResults(SCHOOL, 'admin-1', { examId: 'exam-1' });
+    await service.reviewResults(SCHOOL, 'teacher-1', { resultIds: [list.data[0]!.id] });
+    await service.releaseResults(SCHOOL, ADMIN, { examId: 'exam-1' });
 
     const preview = await service.previewKeyCorrection(SCHOOL, 'teacher-1', {
       examId: 'exam-1',
@@ -286,6 +363,23 @@ describe('ResultsService', () => {
     expect(applied.notificationsQueued).toBe(1);
     const queued = await notificationRepo.list({ schoolId: SCHOOL, status: 'queued' });
     expect(queued).toHaveLength(2);
+  });
+
+  it('skips the remark notification when the school turned it off', async () => {
+    await settings.update(SCHOOL, { notify_on_remark: false });
+    await service.processSubmission(submissionInput());
+    const list = await service.list(SCHOOL, {});
+    await service.reviewResults(SCHOOL, 'teacher-1', { resultIds: [list.data[0]!.id] });
+    await service.releaseResults(SCHOOL, ADMIN, { examId: 'exam-1' });
+
+    const preview = await service.previewKeyCorrection(SCHOOL, 'teacher-1', {
+      examId: 'exam-1',
+      questionId: 'q1',
+      correctOptionIds: ['b'],
+      reason: 'Correction',
+    });
+    const applied = await service.applyKeyCorrection(SCHOOL, 'teacher-1', preview.run.id);
+    expect(applied.notificationsQueued).toBe(0);
   });
 
   it('cancels a previewed correction', async () => {

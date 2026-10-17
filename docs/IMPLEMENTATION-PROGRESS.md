@@ -215,7 +215,7 @@ startup migrations applied).
   cloud-api. Committed as `c613b60`.
 
 ### Phase 9: Results & Analytics ✅
-**Status:** Complete (server-side/logic; document encoders deferred)
+**Status:** Complete (server-side/logic, including document encoders)
 
 **Deliverables:**
 - **Data model** (`packages/shared-types/src/db/schema.ts`): enums
@@ -252,10 +252,67 @@ startup migrations applied).
   in-memory implementations otherwise.
 
 **Verification:** shared-types 22, exam-core 104, school-server 117, cloud-api
-295 passed / 2 skipped; typecheck 11/11 tasks; build 9/9 tasks.
+326 passed / 2 skipped; typecheck 11/11 tasks; build 9/9 tasks.
 
-**Deferred (by decision):** binary `.xlsx`/`.pdf` encoders (reports return the
-structured report), real email/SMS transport, and per-term grouping.
+**Deferred (by decision):** real email/SMS transport, and per-term grouping.
+
+### Phase 9 gap closure ✅
+**Status:** Complete — closes the gaps found in the Phase 9 review against API
+spec sections 9–11.
+
+**Deliverables:**
+- **Settings module** (`settings/`): typed view over `schools.settings`
+  (`GET/PATCH /settings`, API spec 11.3) with documented defaults,
+  key-by-key nested merge and validation; `release_policy`,
+  `notify_on_remark`, `paid_channels_enabled`/`paid_message_monthly_cap` are now
+  consumed by the results and notifications modules.
+- **Idempotency** (`common/idempotency/`): global module + `IdempotencyInterceptor`
+  implementing `Idempotency-Key` (API spec 1.6). A repeat with the same key and
+  body replays the first response for 24 hours; a different body is
+  `409 IDEMPOTENCY_KEY_REUSED`. Applied to `POST /results/release` and
+  `POST /exams/:id/key-corrections/:runId/apply`.
+- **Audit entries**: `results.reviewed`, `results.released`, `results.withdrawn`,
+  `results.marked` and `key_correction.applied` (plus
+  `key_correction.pack_rebuild_failed`) recorded through `AuditService`.
+- **Release policy** (BR-14): `ResultsService.releaseResults` takes the caller
+  actor and allows School Admin always, a teacher only when `release_policy` is
+  `class_teacher`.
+- **Key-correction versioning** (BR-12): `KeyCorrectionStore` (Drizzle +
+  in-memory). On apply, the corrected question is created as a new approved
+  `version + 1` superseding the original, its options/assets are copied with the
+  corrected `is_correct` flags, the question is swapped into the exam and
+  `exam_packs.key_version` is bumped — in one transaction. A new pack version is
+  then built through `ExamPackService` (post-transaction).
+- **Manual/essay marking** (§14.5): `POST /results/:id/answers/:questionId/marks`
+  sets a score, recomputes the result total/percent/grade and bumps the revision.
+- **Correct answers** (§9.2): `GET /results/:id` now returns each answer's
+  `correct` flag and a structured `correctAnswer`.
+- **Parent notification ownership**: `POST /parent/notifications/:id/read` only
+  marks the signed-in guardian's own notification (`404` otherwise).
+- **`notify_on_remark`** (BR-15): a changed released result notifies its
+  guardians unless the school turned it off.
+- **Paid-channel gating** (§11.3, BR-21): a disabled `sms`/`whatsapp` channel or
+  a school over its monthly cap silently downgrades to email/in-app and records
+  `downgraded_from`.
+- **Report exports** (§9.2): `GET /exams/:id/results.xlsx|.csv|.pdf` and
+  `GET /students/:id/results.pdf`. The `.xlsx` is a real Office Open XML workbook
+  built with the exam-core stored-ZIP writer; the `.pdf` is a minimal font-only
+  PDF document.
+- **Parent account** (§10): `GET/PATCH /parent/me` (notification preferences,
+  persisted on `guardians.notification_prefs`), `POST /parent/me/email/otp` and
+  `POST /parent/me/email/verify` (hashed, throttled, attempt-limited code).
+- **Richer dashboards** (§11.1): `GET /dashboard/admin|teacher` add
+  sittings/readiness, pending invitations, in-flight imports, last sync time and
+  the caller's exams (a teacher sees only their own).
+- **Results list** (§9.2): cursor pagination and `last_synced_at` for the exam;
+  parent results/trends accept `term_id` (accepted for compatibility).
+
+**Migrations:** `0007_perpetual_prowler.sql` (adds `guardian_email` to
+`otp_purpose` and `guardians.notification_prefs`).
+
+**Deferred (by decision):** term modelling (so `term_id` filters are
+accept-and-document), the real email/SMS transports, and cloud server-health
+metrics (the cloud schema has no device table).
 
 ## Technical Patterns Established
 

@@ -58,11 +58,11 @@ export interface SessionRecord {
   revokedAt: Date | null;
 }
 
-/** One-time-code challenge, for password reset. */
+/** One-time-code challenge: password reset or a parent's email change. */
 export interface OtpChallengeRecord {
   id: string;
   userId: string;
-  purpose: 'password_reset';
+  purpose: 'password_reset' | 'guardian_email';
   sentTo: string;
   /** SHA-256 hex of the code. */
   codeHash: string;

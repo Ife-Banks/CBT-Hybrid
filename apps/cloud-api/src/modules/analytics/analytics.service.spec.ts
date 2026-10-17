@@ -110,16 +110,44 @@ describe('AnalyticsService', () => {
     expect(anomalies.some((anomaly) => anomaly.type === 'score_mismatch')).toBe(true);
   });
 
-  it('builds a dashboard summary from the review queue', async () => {
+  it('builds a dashboard summary from the review queue, sittings and queues', async () => {
     await seedResult('r1', 'student-1', 100, 'A', 'a');
     await results.update('r1', { status: 'reviewed' });
     await seedResult('r2', 'student-2', 60, 'B', 'b');
+    directory.seedSitting({
+      id: 'sitting-1',
+      schoolId: SCHOOL,
+      examId: 'exam-1',
+      classId: 'class-1',
+      status: 'open',
+    });
+    directory.seedSitting({
+      id: 'sitting-2',
+      schoolId: SCHOOL,
+      examId: 'exam-1',
+      classId: 'class-1',
+      status: 'closed',
+    });
+    directory.seedInvitation({ id: 'inv-1', schoolId: SCHOOL, status: 'pending' });
+    directory.seedImportJob({ id: 'imp-1', schoolId: SCHOOL, status: 'processing' });
 
     const dashboard = await service.generateDashboardData(SCHOOL, 'school_admin');
-    expect(dashboard).toEqual({
+    expect(dashboard).toMatchObject({
       role: 'school_admin',
       results: { awaitingReview: 1, awaitingRelease: 1, released: 0 },
+      sittings: { total: 2, upcoming: 1, completed: 1 },
+      pendingInvitations: 1,
+      activeImports: 1,
     });
+    expect(dashboard.lastSyncedAt).not.toBeNull();
+    expect(dashboard.exams).toEqual([
+      { id: 'exam-1', title: 'Maths', subject: 'Mathematics', classes: 1 },
+    ]);
+  });
+
+  it('scopes the dashboard exams to the teacher own exams', async () => {
+    const teacherDashboard = await service.generateDashboardData(SCHOOL, 'teacher', 'someone-else');
+    expect(teacherDashboard.exams).toEqual([]);
   });
 
   it('computes class share for the parent view', async () => {

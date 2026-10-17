@@ -31,6 +31,23 @@ export interface DirectoryRepository {
   getGuardianship(guardianId: string, studentId: string): Promise<GuardianshipInfo | null>;
   listGuardianshipsByGuardian(guardianId: string): Promise<GuardianshipInfo[]>;
   listGuardianshipsByStudent(studentId: string): Promise<GuardianshipInfo[]>;
+  // Dashboard aggregates (API spec 11.1).
+  listSittings(schoolId: string): Promise<SittingInfo[]>;
+  listExams(schoolId: string, options?: { createdBy?: string }): Promise<ExamInfo[]>;
+  countPendingInvitations(schoolId: string): Promise<number>;
+  countActiveImports(schoolId: string): Promise<number>;
+}
+
+interface InvitationStub {
+  id: string;
+  schoolId: string;
+  status: string;
+}
+
+interface ImportJobStub {
+  id: string;
+  schoolId: string;
+  status: string;
 }
 
 /** Seed helpers exposed by the in-memory directory for tests and local runs. */
@@ -43,9 +60,11 @@ export class InMemoryDirectoryRepository implements DirectoryRepository {
   private readonly sittings = new Map<string, SittingInfo>();
   private readonly guardians = new Map<string, GuardianInfo>();
   private readonly guardianships: GuardianshipInfo[] = [];
+  private readonly invitations = new Map<string, InvitationStub>();
+  private readonly importJobs = new Map<string, ImportJobStub>();
 
   seedExam(exam: ExamInfo): void {
-    this.exams.set(exam.id, { ...exam });
+    this.exams.set(exam.id, { ...exam, classIds: [...exam.classIds] });
   }
 
   seedExamQuestions(examId: string, questions: ExamQuestionKeyInfo[]): void {
@@ -72,9 +91,24 @@ export class InMemoryDirectoryRepository implements DirectoryRepository {
     this.guardianships.push({ ...info });
   }
 
+  seedInvitation(invitation: InvitationStub): void {
+    this.invitations.set(invitation.id, { ...invitation });
+  }
+
+  seedImportJob(job: ImportJobStub): void {
+    this.importJobs.set(job.id, { ...job });
+  }
+
   async getExam(examId: string): Promise<ExamInfo | null> {
     const found = this.exams.get(examId);
     return found ? { ...found, classIds: [...found.classIds] } : null;
+  }
+
+  async listExams(schoolId: string, options: { createdBy?: string } = {}): Promise<ExamInfo[]> {
+    return [...this.exams.values()]
+      .filter((exam) => exam.schoolId === schoolId)
+      .filter((exam) => (options.createdBy ? exam.createdBy === options.createdBy : true))
+      .map((exam) => ({ ...exam, classIds: [...exam.classIds] }));
   }
 
   async listExamQuestions(examId: string): Promise<ExamQuestionKeyInfo[]> {
@@ -101,6 +135,28 @@ export class InMemoryDirectoryRepository implements DirectoryRepository {
   async getSitting(sittingId: string): Promise<SittingInfo | null> {
     const found = this.sittings.get(sittingId);
     return found ? { ...found } : null;
+  }
+
+  async listSittings(schoolId: string): Promise<SittingInfo[]> {
+    return [...this.sittings.values()]
+      .filter((sitting) => sitting.schoolId === schoolId)
+      .map((sitting) => ({ ...sitting }));
+  }
+
+  async countPendingInvitations(schoolId: string): Promise<number> {
+    return [...this.invitations.values()].filter(
+      (invitation) =>
+        invitation.schoolId === schoolId &&
+        (invitation.status === 'pending' || invitation.status === 'sent'),
+    ).length;
+  }
+
+  async countActiveImports(schoolId: string): Promise<number> {
+    return [...this.importJobs.values()].filter(
+      (job) =>
+        job.schoolId === schoolId &&
+        (job.status === 'pending' || job.status === 'processing' || job.status === 'running'),
+    ).length;
   }
 
   async getGuardian(guardianId: string): Promise<GuardianInfo | null> {
@@ -138,5 +194,7 @@ export class InMemoryDirectoryRepository implements DirectoryRepository {
     this.sittings.clear();
     this.guardians.clear();
     this.guardianships.length = 0;
+    this.invitations.clear();
+    this.importJobs.clear();
   }
 }

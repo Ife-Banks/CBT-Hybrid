@@ -190,6 +190,16 @@ export interface GuardianInfo {
   fullName: string;
   email: string | null;
   phoneE164: string | null;
+  /** Parent notification channel preferences (US-12.6). */
+  notificationPrefs?: NotificationPreferences;
+}
+
+/** Which channels a parent has opted in to (US-12.6). */
+export interface NotificationPreferences {
+  email?: boolean;
+  sms?: boolean;
+  whatsapp?: boolean;
+  inApp?: boolean;
 }
 
 export interface SittingInfo {

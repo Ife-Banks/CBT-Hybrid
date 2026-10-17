@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { NotFoundException } from '@nestjs/common';
 import { NotificationsService, chooseChannel } from './notifications.service';
 import { InMemoryNotificationRepository } from './repositories/notification.repository';
+import { SettingsService } from '../settings/settings.service';
+import { InMemorySchoolSettingsRepository } from '../settings/settings.repository';
 
 const SCHOOL = 'school-1';
 
@@ -102,5 +104,67 @@ describe('NotificationsService', () => {
     expect(sent).toBe(1);
     const queued = await service.listLog(SCHOOL, { status: 'queued' });
     expect(queued).toHaveLength(0);
+  });
+
+  it('downgrades a disabled paid channel to email (BR-21)', async () => {
+    const settings = new SettingsService(new InMemorySchoolSettingsRepository());
+    const gated = new NotificationsService(repository, settings);
+    const record = await gated.queueResultsReleased({
+      schoolId: SCHOOL,
+      guardian: {
+        id: 'g1',
+        schoolId: SCHOOL,
+        userId: 'u1',
+        fullName: 'Parent',
+        email: 'parent@example.com',
+        phoneE164: '+2348000000000',
+      },
+      studentId: 'student-1',
+      prefs: { whatsapp: true },
+    });
+    expect(record.channel).toBe('email');
+    expect(record.payload).toMatchObject({ downgraded_from: 'whatsapp' });
+  });
+
+  it('downgrades a paid channel once the monthly cap is reached (BR-21)', async () => {
+    const settingsRepo = new InMemorySchoolSettingsRepository();
+    const settings = new SettingsService(settingsRepo);
+    await settings.update(SCHOOL, {
+      paid_channels_enabled: { sms: true },
+      paid_message_monthly_cap: 1,
+    });
+    await service.enqueue({ schoolId: SCHOOL, channel: 'sms', template: 'x', payload: {} });
+
+    const gated = new NotificationsService(repository, settings);
+    const record = await gated.queueResultsReleased({
+      schoolId: SCHOOL,
+      guardian: {
+        id: 'g1',
+        schoolId: SCHOOL,
+        userId: 'u1',
+        fullName: 'Parent',
+        email: 'parent@example.com',
+        phoneE164: '+2348000000000',
+      },
+      studentId: 'student-1',
+      prefs: { sms: true },
+    });
+    expect(record.channel).toBe('email');
+    expect(record.payload).toMatchObject({ downgraded_from: 'sms' });
+  });
+
+  it('only marks a guardian own notification read', async () => {
+    const created = await service.enqueue({
+      schoolId: SCHOOL,
+      guardianId: 'guardian-1',
+      channel: 'in_app',
+      template: 'x',
+      payload: {},
+    });
+    await expect(
+      service.markReadForGuardian(SCHOOL, 'guardian-2', created.id),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    const read = await service.markReadForGuardian(SCHOOL, 'guardian-1', created.id);
+    expect(read.readAt).toBeInstanceOf(Date);
   });
 });

@@ -72,7 +72,7 @@ export function toOtpChallengeRecord(dbOtp: DbOtpChallenge): OtpChallengeRecord 
   return {
     id: dbOtp.id,
     userId: dbOtp.userId || '',
-    purpose: dbOtp.purpose as 'password_reset',
+    purpose: dbOtp.purpose as 'password_reset' | 'guardian_email',
     sentTo: dbOtp.sentTo,
     codeHash: dbOtp.codeHash,
     attempts: dbOtp.attempts,

@@ -4,7 +4,7 @@ import { sql, eq } from 'drizzle-orm';
 // Enums - aligned with Phase 2 domain types
 export const userRoleEnum = pgEnum('user_role', ['platform_owner', 'school_admin', 'teacher', 'invigilator', 'parent', 'student']);
 export const userStatusEnum = pgEnum('user_status', ['invited', 'active', 'suspended', 'deactivated']);
-export const otpPurposeEnum = pgEnum('otp_purpose', ['password_reset']);
+export const otpPurposeEnum = pgEnum('otp_purpose', ['password_reset', 'guardian_email']);
 export const invitationKindEnum = pgEnum('invitation_kind', ['staff', 'guardian', 'password_reset']);
 export const invitationStatusEnum = pgEnum('invitation_status', ['pending', 'sent', 'used', 'expired', 'revoked', 'failed']);
 export const invitationChannelEnum = pgEnum('invitation_channel', ['email', 'sms', 'whatsapp', 'printed', 'manual_link']);
@@ -195,6 +195,11 @@ export const guardians = pgTable('guardians', {
   email: text('email'),
   phoneE164: text('phone_e164'),
   relationship: text('relationship'),
+  // Parent notification channel preferences (US-12.6): `{ email, sms, whatsapp, in_app }`.
+  notificationPrefs: jsonb('notification_prefs')
+    .$type<{ email?: boolean; sms?: boolean; whatsapp?: boolean; inApp?: boolean }>()
+    .notNull()
+    .default(sql`'{}'::jsonb`),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({

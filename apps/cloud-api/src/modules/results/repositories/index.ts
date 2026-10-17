@@ -8,3 +8,5 @@ export * from './result.repository';
 export * from './drizzle-result.repository';
 export * from './remark-run.repository';
 export * from './drizzle-remark-run.repository';
+export * from './key-correction.store';
+export * from './drizzle-key-correction.store';

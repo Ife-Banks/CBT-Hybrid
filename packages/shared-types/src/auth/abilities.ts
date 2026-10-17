@@ -142,7 +142,12 @@ export const ROLE_ABILITIES: Record<Role, RoleAbilityRule[]> = {
     { action: 'release', subject: 'Result' },
     { action: 'read', subject: 'Dashboard' },
   ],
-  parent: [{ action: 'read', subject: ['Guardian', 'Student', 'Result', 'Report'] }],
+  parent: [
+    { action: 'read', subject: ['Guardian', 'Student', 'Result', 'Report'] },
+    // Parents maintain their own contact details and notification preferences
+    // (API spec section 10); the parent portal scopes every write to self.
+    { action: 'update', subject: 'Guardian' },
+  ],
   student: [],
   invigilator: [],
 };

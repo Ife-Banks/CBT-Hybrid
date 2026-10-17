@@ -97,10 +97,12 @@ export class ParentPortalService {
     schoolId: string,
     guardianId: string,
     studentId: string,
-    filter: { subjectId?: string } = {},
+    filter: { subjectId?: string; termId?: string } = {},
   ): Promise<ParentResultView[]> {
     const link = await this.assertVisible(schoolId, guardianId, studentId);
     if (!link.canViewResults) return [];
+    // `term_id` is accepted for forward compatibility; terms are not modelled in
+    // this phase (results carry no term), so it does not narrow the list yet.
     const released = await this.results.list({ schoolId, studentId, status: 'released' });
     const filtered = filter.subjectId
       ? released.filter((result) => result.subjectId === filter.subjectId)

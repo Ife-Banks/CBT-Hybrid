@@ -56,6 +56,6 @@ export class AnalyticsController {
   @Get('dashboard/teacher')
   @CheckAbilities({ action: 'read', subject: 'Dashboard' })
   async teacherDashboard(@CurrentAuth() auth: AuthContext) {
-    return this.analytics.generateDashboardData(requireSchool(auth), 'teacher');
+    return this.analytics.generateDashboardData(requireSchool(auth), 'teacher', auth.user.id);
   }
 }

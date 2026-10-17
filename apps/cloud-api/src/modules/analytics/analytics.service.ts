@@ -33,6 +33,15 @@ export interface DashboardData {
     awaitingRelease: number;
     released: number;
   };
+  sittings: {
+    total: number;
+    upcoming: number;
+    completed: number;
+  };
+  pendingInvitations: number;
+  activeImports: number;
+  lastSyncedAt: string | null;
+  exams: Array<{ id: string; title: string; subject: string | null; classes: number }>;
 }
 
 /**
@@ -164,14 +173,67 @@ export class AnalyticsService {
     return detectAnomalies(examId, samples, perQuestion, options);
   }
 
-  /** Small dashboard summary of the review queue (US-14.1/14.2). */
-  async generateDashboardData(schoolId: string, role: string): Promise<DashboardData> {
-    const [awaitingReview, awaitingRelease, released] = await Promise.all([
+  /**
+   * Dashboard summary (API spec 11.1, US-14.1/14.2): the review queue plus
+   * sittings/readiness, pending invitations, in-flight imports, the last sync
+   * time and the exams the caller cares about (a teacher sees only their own).
+   */
+  async generateDashboardData(
+    schoolId: string,
+    role: string,
+    userId?: string,
+  ): Promise<DashboardData> {
+    const [
+      awaitingReview,
+      awaitingRelease,
+      released,
+      sittings,
+      pendingInvitations,
+      activeImports,
+      submissions,
+      exams,
+    ] = await Promise.all([
       this.results.countByStatus(schoolId, 'draft'),
       this.results.countByStatus(schoolId, 'reviewed'),
       this.results.countByStatus(schoolId, 'released'),
+      this.directory.listSittings(schoolId),
+      this.directory.countPendingInvitations(schoolId),
+      this.directory.countActiveImports(schoolId),
+      this.submissions.list({ schoolId }),
+      this.directory.listExams(
+        schoolId,
+        role === 'teacher' && userId ? { createdBy: userId } : {},
+      ),
     ]);
-    return { role, results: { awaitingReview, awaitingRelease, released } };
+
+    let lastSyncedAt: Date | null = null;
+    for (const submission of submissions) {
+      if (!lastSyncedAt || submission.updatedAt.getTime() > lastSyncedAt.getTime()) {
+        lastSyncedAt = submission.updatedAt;
+      }
+    }
+
+    return {
+      role,
+      results: { awaitingReview, awaitingRelease, released },
+      sittings: {
+        total: sittings.length,
+        upcoming: sittings.filter((sitting) => sitting.status === 'scheduled' || sitting.status === 'open')
+          .length,
+        completed: sittings.filter(
+          (sitting) => sitting.status === 'closed' || sitting.status === 'cancelled',
+        ).length,
+      },
+      pendingInvitations,
+      activeImports,
+      lastSyncedAt: lastSyncedAt ? lastSyncedAt.toISOString() : null,
+      exams: exams.slice(0, 5).map((exam) => ({
+        id: exam.id,
+        title: exam.title,
+        subject: exam.subjectName,
+        classes: exam.classIds.length,
+      })),
+    };
   }
 
   /** Class average and pass mark for the parent result view. */

@@ -3,6 +3,7 @@ import { ConfigService } from '../../common/config/config.service';
 import { DatabaseModule } from '../../shared/database/database.module';
 import { DrizzleService } from '../../shared/database/drizzle.service';
 import { AuthModule } from '../auth/auth.module';
+import { SettingsModule } from '../settings/settings.module';
 import { DrizzleNotificationRepository } from './repositories/drizzle-notification.repository';
 import {
   InMemoryNotificationRepository,
@@ -17,7 +18,7 @@ import { NotificationsService } from './notifications.service';
  * DATABASE_URL is configured, otherwise in-memory implementations.
  */
 @Module({
-  imports: [DatabaseModule.register(), AuthModule],
+  imports: [DatabaseModule.register(), AuthModule, SettingsModule],
   controllers: [NotificationsController],
   providers: [
     {

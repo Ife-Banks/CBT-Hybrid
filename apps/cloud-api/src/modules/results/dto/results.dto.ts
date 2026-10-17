@@ -7,7 +7,9 @@ export const resultListQuerySchema = z.object({
   class_id: z.string().optional(),
   status: resultStatusSchema.optional(),
   student_id: z.string().optional(),
+  term_id: z.string().optional(),
   cursor: z.string().optional(),
+  limit: z.coerce.number().int().positive().max(200).optional(),
 });
 
 export const reviewResultsSchema = z.object({
@@ -46,6 +48,11 @@ export const gradeBandSchema = z.object({
 export const gradeScaleSchema = z.object({
   name: z.string().optional(),
   bands: z.array(gradeBandSchema).min(1),
+});
+
+export const manualMarkSchema = z.object({
+  marks: z.number().nonnegative(),
+  comment: z.string().optional(),
 });
 
 export type ReviewResultsDto = z.infer<typeof reviewResultsSchema>;

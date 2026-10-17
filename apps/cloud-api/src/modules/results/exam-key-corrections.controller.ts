@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards, UseInterceptors } from '@nestjs/common';
+import { IdempotencyInterceptor } from '../../common/idempotency/idempotency.interceptor';
 import { requireSchool } from '../../common/request-context';
 import { CheckAbilities } from '../auth/decorators/check-abilities.decorator';
 import { CurrentAuth } from '../auth/decorators/current-auth.decorator';
@@ -45,6 +46,7 @@ export class ExamKeyCorrectionsController {
 
   @Post(':examId/key-corrections/:runId/apply')
   @CheckAbilities({ action: 'update', subject: 'Exam' })
+  @UseInterceptors(IdempotencyInterceptor)
   async apply(@CurrentAuth() auth: AuthContext, @Param('runId') runId: string) {
     const schoolId = requireSchool(auth);
     return this.results.applyKeyCorrection(schoolId, auth.user.id, runId);
