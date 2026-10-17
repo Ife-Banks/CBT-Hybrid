@@ -34,6 +34,8 @@ describe('AbilityFactory (API spec section 19)', () => {
       expect(ability.can('create', 'Invitation')).toBe(true);
       expect(ability.can('read', 'Student')).toBe(false);
       expect(ability.can('manage', 'Result')).toBe(false);
+      // Exports are a School Admin action (API spec 11.4).
+      expect(ability.can('read', 'Export')).toBe(false);
     });
 
     it('is not scoped to a single school', () => {
@@ -49,6 +51,7 @@ describe('AbilityFactory (API spec section 19)', () => {
       expect(ability.can('manage', 'Student')).toBe(true);
       expect(ability.can('manage', 'Result')).toBe(true);
       expect(ability.can('read', 'AuditLog')).toBe(true);
+      expect(ability.can('read', 'Export')).toBe(true);
       expect(ability.can('manage', 'Platform')).toBe(false);
     });
 
@@ -69,6 +72,7 @@ describe('AbilityFactory (API spec section 19)', () => {
       expect(ability.can('manage', 'School')).toBe(false);
       expect(ability.can('manage', 'User')).toBe(false);
       expect(ability.can('manage', 'Result')).toBe(false);
+      expect(ability.can('read', 'Export')).toBe(false);
     });
 
     it('is scoped to its own school', () => {

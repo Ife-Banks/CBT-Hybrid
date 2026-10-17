@@ -46,6 +46,8 @@ export class CsrfGuard implements CanActivate {
         action: 'auth.csrf.rejected',
         outcome: 'failure',
         actorUserId: request.auth.user.id,
+        actorRole: request.auth.user.role,
+        schoolId: request.auth.user.schoolId,
         ip: request.ip,
         requestId: request.requestId,
       });

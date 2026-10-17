@@ -128,12 +128,13 @@ export class AuthService {
 
   // --- Sessions ------------------------------------------------------------
 
-  async logout(session: SessionRecord, context: RequestContext): Promise<void> {
+  async logout(user: UserRecord, session: SessionRecord, context: RequestContext): Promise<void> {
     await this.sessions.revoke(session);
     this.audit.record({
       action: 'auth.logout',
       outcome: 'success',
-      actorUserId: session.userId,
+      actorUserId: user.id,
+      schoolId: user.schoolId,
       ip: context.ip,
       userAgent: context.userAgent,
       requestId: context.requestId,

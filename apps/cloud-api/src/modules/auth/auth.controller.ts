@@ -77,7 +77,7 @@ export class AuthController {
     @Req() request: AuthRequest,
     @Res({ passthrough: true }) response: HttpResponse,
   ): Promise<void> {
-    await this.auth.logout(auth.session, this.context(request));
+    await this.auth.logout(auth.user, auth.session, this.context(request));
     response.setHeader('Set-Cookie', clearAuthCookies(this.config.cookieSecure));
   }
 

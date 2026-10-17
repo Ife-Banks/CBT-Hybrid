@@ -56,6 +56,7 @@ export const SUBJECTS = [
   'AuditLog',
   'Setting',
   'Dashboard',
+  'Export',
 ] as const;
 
 export type Subject = (typeof SUBJECTS)[number];
@@ -90,6 +91,7 @@ export const SCHOOL_SCOPED_SUBJECTS: readonly Subject[] = [
   'Device',
   'Setting',
   'Dashboard',
+  'Export',
 ];
 
 /**
@@ -127,6 +129,7 @@ export const ROLE_ABILITIES: Record<Role, RoleAbilityRule[]> = {
         'AuditLog',
         'Setting',
         'Dashboard',
+        'Export',
       ],
     },
   ],

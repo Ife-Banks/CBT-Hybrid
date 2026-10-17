@@ -53,6 +53,7 @@ export const PERMISSIONS = {
   deviceManage: 'device:manage',
   syncRun: 'sync:run',
   auditRead: 'audit:read',
+  dataExport: 'data:export',
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -82,6 +83,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     PERMISSIONS.reportRead,
     PERMISSIONS.deviceManage,
     PERMISSIONS.auditRead,
+    PERMISSIONS.dataExport,
   ],
   teacher: [
     PERMISSIONS.studentRead,

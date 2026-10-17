@@ -34,6 +34,8 @@ export class UsersController {
       action: 'student.created',
       outcome: 'success',
       actorUserId: req.user.id,
+      actorRole: req.user.role,
+      schoolId: req.user.schoolId,
       targetId: student.id,
     });
     return student;
@@ -56,6 +58,8 @@ export class UsersController {
       action: 'student.updated',
       outcome: 'success',
       actorUserId: req.user.id,
+      actorRole: req.user.role,
+      schoolId: req.user.schoolId,
       targetId: id,
     });
     return student;
@@ -68,6 +72,8 @@ export class UsersController {
       action: 'student.deleted',
       outcome: 'success',
       actorUserId: req.user.id,
+      actorRole: req.user.role,
+      schoolId: req.user.schoolId,
       targetId: id,
     });
   }
@@ -80,6 +86,8 @@ export class UsersController {
       action: 'studentCode.generated',
       outcome: 'success',
       actorUserId: req.user.id,
+      actorRole: req.user.role,
+      schoolId: req.user.schoolId,
       targetId: id,
     });
     return code;
@@ -102,6 +110,8 @@ export class UsersController {
       action: 'studentCode.revoked',
       outcome: 'success',
       actorUserId: req.user.id,
+      actorRole: req.user.role,
+      schoolId: req.user.schoolId,
       targetId: id,
       detail: { reason },
     });
@@ -116,6 +126,8 @@ export class UsersController {
       action: 'guardian.created',
       outcome: 'success',
       actorUserId: req.user.id,
+      actorRole: req.user.role,
+      schoolId: req.user.schoolId,
       targetId: guardian.id,
     });
     return guardian;
@@ -138,6 +150,8 @@ export class UsersController {
       action: 'guardian.deleted',
       outcome: 'success',
       actorUserId: req.user.id,
+      actorRole: req.user.role,
+      schoolId: req.user.schoolId,
       targetId: id,
     });
   }
@@ -164,6 +178,8 @@ export class UsersController {
         action: 'guardianship.created',
         outcome: 'success',
         actorUserId: req.user.id,
+      actorRole: req.user.role,
+      schoolId: req.user.schoolId,
         detail: { guardianId, studentId },
       });
     }
@@ -180,6 +196,8 @@ export class UsersController {
       action: 'guardianship.deleted',
       outcome: 'success',
       actorUserId: req.user.id,
+      actorRole: req.user.role,
+      schoolId: req.user.schoolId,
       detail: { guardianId, studentId },
     });
   }
@@ -202,6 +220,8 @@ export class UsersController {
       action: 'invitation.created',
       outcome: 'success',
       actorUserId: req.user.id,
+      actorRole: req.user.role,
+      schoolId: req.user.schoolId,
       targetId: invitation.id,
     });
     return invitation;
@@ -224,6 +244,8 @@ export class UsersController {
       action: 'invitation.used',
       outcome: 'success',
       actorUserId: req.user.id,
+      actorRole: req.user.role,
+      schoolId: req.user.schoolId,
       targetId: id,
     });
     return invitation;
@@ -236,6 +258,8 @@ export class UsersController {
       action: 'invitation.revoked',
       outcome: 'success',
       actorUserId: req.user.id,
+      actorRole: req.user.role,
+      schoolId: req.user.schoolId,
       targetId: id,
     });
     return invitation;

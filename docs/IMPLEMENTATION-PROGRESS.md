@@ -314,6 +314,34 @@ spec sections 9–11.
 accept-and-document), the real email/SMS transports, and cloud server-health
 metrics (the cloud schema has no device table).
 
+### Phase 9 §11.4 audit log & exports ✅
+**Status:** Complete — the remaining slice of API spec section 11.
+
+**Deliverables:**
+- **Durable audit log** (`audit_logs`): append-only table (`audit_outcome`,
+  `school_id`/`actor_user_id` FKs, `entity_type`/`entity_id`, request metadata,
+  `detail` jsonb). `AuditService` now persists every event (fire-and-forget, so
+  the guards and services that call it stay synchronous) behind an
+  `AUDIT_LOG_REPOSITORY` port (Drizzle + in-memory). Audit call sites now carry
+  `school_id`/`actor_role` so a School Admin sees their own school's entries.
+- **`GET /audit-logs`** (§11.4, US-16.1): read-only listing with
+  `actor_id`, `action`, `entity`, `from`, `to` and opaque cursor pagination
+  (newest first). A school user is scoped to their school; the platform owner
+  gets a cross-school view. No update or delete route exists.
+- **`GET /exports/:name.:ext`** (§11.4, US-14.3): School Admin only. `name` is
+  `students`, `guardians`, `invitations`, `notifications` or `audit`; `ext` is
+  `csv` or `xlsx` (the `.xlsx` reuses the exam-core stored-ZIP writer). Each
+  export writes a `data.exported` audit entry. `attendance` is accepted as a
+  documented name but returns `404` (attendance is not modelled yet).
+- **Ability vocabulary:** new `Export` subject (School Admin only); `data:export`
+  permission added to the documentation view.
+
+**Migrations:** `0008_oval_falcon.sql` (adds the `audit_outcome` enum and the
+`audit_logs` table with its indexes).
+
+**Deferred (by decision):** the `attendance` export (no attendance model) and
+student `anonymise`/`data-export` (§5, US-16.2 — a separate retention feature).
+
 ## Technical Patterns Established
 
 ### Repository Pattern

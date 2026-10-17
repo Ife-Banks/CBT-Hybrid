@@ -7,7 +7,9 @@ import { PasswordService } from './password.service';
 import { SessionService } from './session.service';
 import { TotpService } from './totp.service';
 import { AbilityFactory } from './abilities/ability.factory';
+import { AUDIT_LOG_REPOSITORY, InMemoryAuditLogRepository } from './audit/audit-log.repository';
 import { AuditService } from './audit/audit.service';
+import { DrizzleAuditLogRepository } from './audit/drizzle-audit-log.repository';
 import { ClockService } from './clock.service';
 import { LoggingNotifier, NOTIFIER } from './notifier';
 import { USER_REPOSITORY, InMemoryUserRepository } from './repositories/user.repository';
@@ -73,6 +75,15 @@ import { DatabaseModule } from '../../shared/database/database.module';
       },
       inject: [ConfigService, DrizzleService],
     },
+    {
+      provide: AUDIT_LOG_REPOSITORY,
+      useFactory: (config: ConfigService, drizzle: DrizzleService) => {
+        return config.get('DATABASE_URL')
+          ? new DrizzleAuditLogRepository(drizzle)
+          : new InMemoryAuditLogRepository();
+      },
+      inject: [ConfigService, DrizzleService],
+    },
     { provide: NOTIFIER, useClass: LoggingNotifier },
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_GUARD, useClass: CsrfGuard },
@@ -87,6 +98,7 @@ import { DatabaseModule } from '../../shared/database/database.module';
     USER_REPOSITORY,
     SESSION_REPOSITORY,
     OTP_CHALLENGE_REPOSITORY,
+    AUDIT_LOG_REPOSITORY,
   ],
 })
 export class AuthModule {}

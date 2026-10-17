@@ -33,6 +33,9 @@ export const remarkRunStatusEnum = pgEnum('remark_run_status', ['previewed', 'ap
 export const notificationChannelEnum = pgEnum('notification_channel', ['email', 'sms', 'whatsapp', 'in_app']);
 export const notificationStatusEnum = pgEnum('notification_status', ['queued', 'sent', 'failed']);
 
+// Phase 9B: Audit log (API spec 11.4, US-16.1)
+export const auditOutcomeEnum = pgEnum('audit_outcome', ['success', 'failure']);
+
 // Schools table
 export const schools = pgTable('schools', {
   id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
@@ -587,6 +590,30 @@ export const notifications = pgTable('notifications', {
   userReadIdx: index('idx_notifications_user_read').on(table.userId, table.readAt),
 }));
 
+// Audit log (API spec 11.4, US-16.1). Append-only: an entry is written once and
+// there is deliberately no update or delete path. The `entity_*` columns carry
+// the affected resource; `detail` holds action-specific context.
+export const auditLogs = pgTable('audit_logs', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  schoolId: text('school_id').references(() => schools.id, { onDelete: 'set null' }),
+  actorUserId: text('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+  actorRole: text('actor_role'),
+  action: text('action').notNull(),
+  outcome: auditOutcomeEnum('outcome').notNull().default('success'),
+  entityType: text('entity_type'),
+  entityId: text('entity_id'),
+  ip: text('ip'),
+  userAgent: text('user_agent'),
+  requestId: text('request_id'),
+  detail: jsonb('detail'),
+  at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  schoolAtIdx: index('idx_audit_logs_school_at').on(table.schoolId, table.at),
+  actionIdx: index('idx_audit_logs_action').on(table.action),
+  actorIdx: index('idx_audit_logs_actor').on(table.actorUserId),
+  entityIdx: index('idx_audit_logs_entity').on(table.entityType, table.entityId),
+}));
+
 // Types
 export type School = typeof schools.$inferSelect;
 export type NewSchool = typeof schools.$inferInsert;
@@ -678,3 +705,6 @@ export type NewRemarkRun = typeof remarkRuns.$inferInsert;
 
 export type Notification = typeof notifications.$inferSelect;
 export type NewNotification = typeof notifications.$inferInsert;
+
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type NewAuditLog = typeof auditLogs.$inferInsert;

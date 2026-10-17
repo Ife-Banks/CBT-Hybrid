@@ -5,6 +5,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { IdempotencyModule } from './common/idempotency/idempotency.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { AuthModule } from './modules/auth/auth.module';
+import { AuditModule } from './modules/audit/audit.module';
 import { UsersModule } from './modules/users/users.module';
 import { QuestionsModule } from './modules/questions/questions.module';
 import { ExamsModule } from './modules/exams/exams.module';
@@ -14,6 +15,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { ParentPortalModule } from './modules/parent-portal/parent-portal.module';
 import { SettingsModule } from './modules/settings/settings.module';
+import { ExportsModule } from './modules/exports/exports.module';
 import { HealthModule } from './modules/health/health.module';
 import { LoggerModule } from './shared/logger/logger.module';
 
@@ -33,6 +35,8 @@ import { LoggerModule } from './shared/logger/logger.module';
     AnalyticsModule,
     ParentPortalModule,
     SyncModule,
+    AuditModule,
+    ExportsModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
