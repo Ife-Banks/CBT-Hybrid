@@ -39,6 +39,7 @@ export class DrizzleOutboxRepository implements OutboxRepository {
       type: row.type,
       payload: JSON.parse(row.payloadJson),
       createdAt: row.createdAt,
+      attempts: row.attempts,
     }));
   }
 

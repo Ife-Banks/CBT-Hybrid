@@ -375,3 +375,146 @@ export const backupLog = sqliteTable(
   },
   (table) => [index('idx_backup_log_at').on(table.at)],
 );
+
+// ── Phase 8: Sync system (CBT-Phase-8-SyncSystem) ──────────────────────────
+//
+// These tables support bidirectional synchronisation between the cloud API and
+// school servers: conflict detection/resolution, per-sync metrics, resumable
+// checkpoints, retry history and per-entity version vectors for incremental and
+// cross-school-isolated sync.
+
+/**
+ * One row per detected conflict: the same entity was modified on both the cloud
+ * and the school server since their last common sync. The losing value is kept
+ * for audit; `resolved_json` holds the value actually applied once resolved.
+ */
+export const syncConflicts = sqliteTable(
+  'sync_conflicts',
+  {
+    id: text('id').primaryKey(),
+    schoolId: text('school_id').notNull().default('local'),
+    entityType: text('entity_type').notNull(), // student, roster, pack, event, result
+    entityId: text('entity_id').notNull(),
+    localVersion: integer('local_version').notNull().default(0),
+    remoteVersion: integer('remote_version').notNull().default(0),
+    localUpdatedAt: text('local_updated_at'),
+    remoteUpdatedAt: text('remote_updated_at'),
+    localJson: text('local_json').notNull(),
+    remoteJson: text('remote_json').notNull(),
+    status: text('status').notNull().default('open'), // open, resolved, ignored
+    resolution: text('resolution'), // local_wins, remote_wins, merged, manual
+    resolvedJson: text('resolved_json'),
+    detectedAt: text('detected_at').notNull(),
+    resolvedAt: text('resolved_at'),
+    resolvedBy: text('resolved_by'),
+  },
+  (table) => [
+    check(
+      'sync_conflicts_status_check',
+      sql`${table.status} IN ('open','resolved','ignored')`,
+    ),
+    index('idx_sync_conflicts_status').on(table.status, table.detectedAt),
+    index('idx_sync_conflicts_entity').on(table.entityType, table.entityId),
+    index('idx_sync_conflicts_school').on(table.schoolId, table.status),
+  ],
+);
+
+/** Aggregated statistics for a single sync cycle. */
+export const syncMetrics = sqliteTable(
+  'sync_metrics',
+  {
+    syncId: text('sync_id').primaryKey(),
+    schoolId: text('school_id').notNull().default('local'),
+    startedAt: text('started_at').notNull(),
+    completedAt: text('completed_at'),
+    durationMs: integer('duration_ms'),
+    pushed: integer('pushed').notNull().default(0),
+    pulledRoster: integer('pulled_roster').notNull().default(0),
+    pulledPacks: integer('pulled_packs').notNull().default(0),
+    errorCount: integer('error_count').notNull().default(0),
+    conflictsDetected: integer('conflicts_detected').notNull().default(0),
+    conflictsResolved: integer('conflicts_resolved').notNull().default(0),
+    bytesTransferred: integer('bytes_transferred').notNull().default(0),
+    status: text('status').notNull().default('running'), // running, success, partial, failed
+  },
+  (table) => [
+    check(
+      'sync_metrics_status_check',
+      sql`${table.status} IN ('running','success','partial','failed')`,
+    ),
+    index('idx_sync_metrics_started').on(table.startedAt),
+    index('idx_sync_metrics_school').on(table.schoolId, table.startedAt),
+  ],
+);
+
+/**
+ * Resumable progress checkpoints. A long sync records where it got to in each
+ * phase so an interrupted run can resume rather than restart from scratch.
+ */
+export const syncCheckpoints = sqliteTable(
+  'sync_checkpoints',
+  {
+    id: text('id').primaryKey(),
+    syncId: text('sync_id').notNull(),
+    schoolId: text('school_id').notNull().default('local'),
+    phase: text('phase').notNull(), // push, pull_roster, pull_packs
+    cursor: text('cursor'),
+    processed: integer('processed').notNull().default(0),
+    total: integer('total').notNull().default(0),
+    status: text('status').notNull().default('pending'), // pending, in_progress, completed, failed
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    check(
+      'sync_checkpoints_status_check',
+      sql`${table.status} IN ('pending','in_progress','completed','failed')`,
+    ),
+    unique('idx_sync_checkpoints_sync_phase').on(table.syncId, table.phase),
+    index('idx_sync_checkpoints_school').on(table.schoolId, table.updatedAt),
+  ],
+);
+
+/** Audit trail of every retry attempt for an outbox event. */
+export const syncRetryHistory = sqliteTable(
+  'sync_retry_history',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    eventId: text('event_id').notNull(),
+    schoolId: text('school_id').notNull().default('local'),
+    attempt: integer('attempt').notNull(),
+    errorMsg: text('error_msg').notNull(),
+    attemptedAt: text('attempted_at').notNull(),
+    nextAttemptAt: text('next_attempt_at'),
+  },
+  (table) => [
+    index('idx_sync_retry_event').on(table.eventId, table.attempt),
+    index('idx_sync_retry_school').on(table.schoolId, table.attemptedAt),
+  ],
+);
+
+/**
+ * Per-entity version vectors powering incremental, field-aware sync. The
+ * `local_*` values describe this school server; the `remote_*` values describe
+ * the last state seen from the cloud.
+ */
+export const syncEntityVersions = sqliteTable(
+  'sync_entity_versions',
+  {
+    schoolId: text('school_id').notNull().default('local'),
+    entityType: text('entity_type').notNull(),
+    entityId: text('entity_id').notNull(),
+    localVersion: integer('local_version').notNull().default(0),
+    remoteVersion: integer('remote_version').notNull().default(0),
+    baseVersion: integer('base_version').notNull().default(0),
+    /** JSON snapshot both sides last agreed on, for three-way merges. */
+    baseJson: text('base_json'),
+    localUpdatedAt: text('local_updated_at'),
+    remoteUpdatedAt: text('remote_updated_at'),
+    lastSyncedAt: text('last_synced_at'),
+  },
+  (table) => [
+    // Scoped by school so two schools sharing a database can never collide.
+    primaryKey({ columns: [table.schoolId, table.entityType, table.entityId] }),
+    index('idx_sync_entity_versions_entity').on(table.entityType, table.entityId),
+  ],
+);

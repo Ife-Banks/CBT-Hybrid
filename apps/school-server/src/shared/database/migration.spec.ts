@@ -74,6 +74,12 @@ describe('SQLite Migration Tests', () => {
       schema.syncState,
       schema.auditLog,
       schema.backupLog,
+      schema.sessionEvents,
+      schema.syncConflicts,
+      schema.syncMetrics,
+      schema.syncCheckpoints,
+      schema.syncRetryHistory,
+      schema.syncEntityVersions,
     ]) {
       expect(() => db.select().from(table).all()).not.toThrow();
     }

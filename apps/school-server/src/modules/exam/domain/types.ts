@@ -138,6 +138,8 @@ export interface OutboxEventRecord {
   type: string;
   payload: unknown;
   createdAt: string;
+  /** Attempts made so far; present when read from the outbox table. */
+  attempts?: number;
 }
 
 /** Everything the login step needs about a student, their class and exam. */
