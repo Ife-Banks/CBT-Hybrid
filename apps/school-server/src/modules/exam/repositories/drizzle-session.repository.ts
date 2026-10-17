@@ -290,4 +290,13 @@ export class DrizzleSessionRepository implements SessionRepository {
       at: input.at,
     });
   }
+
+  async findById(id: string): Promise<SessionRecord | null> {
+    const rows = await this.db
+      .select()
+      .from(examSessions)
+      .where(eq(examSessions.id, id))
+      .limit(1);
+    return rows[0] ? toSessionRecord(rows[0]) : null;
+  }
 }

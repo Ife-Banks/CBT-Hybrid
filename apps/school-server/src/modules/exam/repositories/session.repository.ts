@@ -73,4 +73,7 @@ export interface SessionRepository {
     type: string;
     at: string;
   }): Promise<void>;
+
+  /** Find a session by its ID. */
+  findById(id: string): Promise<SessionRecord | null>;
 }

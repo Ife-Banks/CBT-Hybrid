@@ -20,6 +20,8 @@ import { META_KEYS, META_REPOSITORY, type MetaRepository } from './repositories/
 import { PackImportService } from './pack-import.service';
 import { TicketService, type TicketClaims } from './ticket.service';
 import { LoginThrottleService } from './login-throttle.service';
+import { SchoolConfigService } from '../../common/config/school-config.service';
+import { join } from 'node:path';
 import type {
   AnswerChange,
   ExamRecord,
@@ -68,6 +70,7 @@ export class ExamSessionService {
     private readonly packImport: PackImportService,
     private readonly tickets: TicketService,
     private readonly throttle: LoginThrottleService,
+    private readonly config: SchoolConfigService,
   ) {}
 
   /** `GET /status` - public login-screen information (API spec 16.2). */
@@ -567,4 +570,88 @@ export class ExamSessionService {
 
     return score;
   }
+
+  // ── NEW PUBLIC METHODS (exposed via ExamController) ────────────────────────
+
+  /**
+   * Submit answers for a session (POST /api/v1/exam/session/:sessionId/submit)
+   */
+  async submitAnswers(
+    sessionId: string,
+    batch: AnswerBatch,
+    ip: string | null,
+  ): Promise<{ status: string; submittedAt: string; sessionId: string }> {
+    const session = await this.getSessionById(sessionId, ip);
+    const result = await this.saveAnswers(session, batch, ip);
+    return {
+      status: result.status,
+      submittedAt: result.saved_at,
+      sessionId,
+    };
+  }
+
+  /**
+   * Get the current status of a session (GET /api/v1/exam/session/:sessionId/status)
+   */
+  async getSessionStatus(sessionId: string, ip: string | null): Promise<{
+    id: string;
+    sittingId: string;
+    status: string;
+    startedAt: string;
+    endsAt: string;
+    timeUp: number;
+    windowClosed: number;
+    focusLostCount: number;
+    lastSeenAt: string;
+    lastIp: string | null;
+  }> {
+    const sess = await this.getSessionById(sessionId, ip);
+    const now = Date.now();
+    return {
+      id: sess.id,
+      sittingId: sess.sittingId,
+      status: sess.status,
+      startedAt: sess.startedAt,
+      endsAt: sess.endsAt,
+      timeUp: Math.max(0, Date.parse(sess.endsAt) - now),
+      windowClosed: 0, // Would need sitting windowEnd to compute
+      focusLostCount: sess.focusLostCount,
+      lastSeenAt: sess.lastSeenAt ?? '',
+      lastIp: sess.lastIp ?? '',
+    };
+  }
+
+  /**
+   * Retrieve a full session object (GET /api/v1/exam/session/:sessionId)
+   */
+  async getFull(sessionId: string, ip: string | null): Promise<SessionRecord> {
+    return this.getSessionById(sessionId, ip);
+  }
+
+  /**
+   * Return absolute path of an imported pack (used by PackController to stream files)
+   */
+  getPackPath(packId: string): string {
+    return join(this.config.examPackFolders.active, packId);
+  }
+
+  /**
+   * Return absolute path of an asset inside a pack (used by AssetController)
+   */
+  getAssetPath(packId: string, assetRelativePath: string): string {
+    const packFolder = this.getPackPath(packId);
+    return join(packFolder, 'assets', assetRelativePath);
+  }
+
+  // Helper to get a session by ID (not by SessionRecord)
+  private async getSessionById(sessionId: string, ip: string | null): Promise<SessionRecord> {
+    const session = await this.sessionRepo.findById(sessionId);
+    if (!session) {
+      throw problem('NOT_FOUND', 'Session not found');
+    }
+    // Touch for activity tracking
+    await this.sessionRepo.touch(session.id, nowIso(), ip);
+    return session;
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
 }

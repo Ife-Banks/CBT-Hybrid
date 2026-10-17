@@ -42,6 +42,23 @@ describe('school-server foundation (e2e)', () => {
     expect(res.body.services.database.status).toBe('ok');
     expect(res.body.services.filesystem.status).toBe('ok');
     expect(res.body.services.memory.status).toBe('ok');
+    expect(res.body.services.sync).toBeDefined();
+    expect(res.headers['x-request-id']).toBeTruthy();
+  });
+
+  it('GET /health/details reports detailed sync diagnostics', async () => {
+    const res = await request(app.getHttpServer()).get('/health/details').expect(200);
+
+    expect(res.body.status).toBe('ok');
+    expect(res.body.service).toBe('school-server');
+    expect(res.body.sync).toBeDefined();
+    expect(res.body.sync.offlineMode).toBeDefined();
+    expect(res.body.sync.cloudSyncUrl).toBeDefined();
+    expect(res.body.sync.pendingOutboxEvents).toBeDefined();
+    expect(res.body.sync.pendingOutboxByType).toBeDefined();
+    expect(res.body.sync.rosterCursor).toBeDefined();
+    expect(res.body.sync.packCursor).toBeDefined();
+    expect(res.body.sync.lastSyncAt).toBeDefined();
     expect(res.headers['x-request-id']).toBeTruthy();
   });
 

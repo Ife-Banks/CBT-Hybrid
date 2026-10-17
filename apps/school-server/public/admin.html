@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CBT School Server - Administration</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1e40af;
+      --secondary: #64748b;
+      --success: #059669;
+      --danger: #dc2626;
+      --warning: #d97706;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #1e293b;
+      --muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      background: white;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 1rem 1.5rem;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    .header .subtitle {
+      color: var(--muted);
+      font-size: 0.875rem;
+      margin-top: 4px;
+    }
+
+    /* Navigation */
+    .nav {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .nav button {
+      padding: 0.5rem 1rem;
+      background: white;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .nav button:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .nav button.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    /* Sections */
+    .section {
+      background: var(--card);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+
+    .section h2 {
+      margin: 0 0 1rem 0;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    /* Status cards */
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .status-card {
+      padding: 0.75rem;
+      border-radius: 6px;
+    }
+
+    .status-card.offline {
+      background: #fee2e2;
+      border: 1px solid #fca5a5;
+    }
+
+    .status-card.online {
+      background: #d1f9c3;
+      border: 1px solid #86efac;
+    }
+
+    .status-card.offline .label,
+    .status-card.online .label {
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+
+    .status-card .value {
+      margin-top: 0.25rem;
+      font-family: monospace;
+    }
+
+    /* Form elements */
+    .form-group {
+      margin-bottom: 0.75rem;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.3rem;
+      font-size: 0.875rem;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 0.875rem;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    /* Response display */
+    .response {
+      margin-top: 1rem;
+      padding: 0.75rem;
+      background: #f1f5f9;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 0.875rem;
+      white-space: pre-wrap;
+      display: none;
+    }
+
+    .response.show {
+      display: block;
+    }
+
+    .response.error {
+      background: #fee2e2;
+      border: 1px solid #fca5a5;
+      color: #dc2626;
+    }
+
+    .response.success {
+      background: #d1f9c3;
+      border: 1px solid #86efac;
+      color: #059669;
+    }
+
+    /* Loading state */
+    .loading {
+      opacity: 0.7;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>CBT School Server</h1>
+    <div class="subtitle">Administration Panel</div>
+  </div>
+
+  <div class="nav">
+    <button class="active" onclick="loadSection('status')">Server Status</button>
+    <button onclick="loadSection('sync')">Sync Control</button>
+  </div>
+
+  <!-- Status Section -->
+  <div id="section-status" class="section">
+    <h2>Server Status</h2>
+    <div class="status-grid">
+      <div class="status-card" id="card-offlineMode">
+        <div class="label">Offline Mode</div>
+        <div class="value" id="offlineModeVal">--</div>
+      </div>
+      <div class="status-card" id="card-syncDisabled">
+        <div class="label">Sync Disabled</div>
+        <div class="value" id="syncDisabledVal">--</div>
+      </div>
+      <div class="status-card" id="card-lastSync">
+        <div class="label">Last Sync</div>
+        <div class="value" id="lastSyncVal">--</div>
+      </div>
+      <div class="status-card" id="card-pendingEvents">
+        <div class="label">Pending Outbox</div>
+        <div class="value" id="pendingEventsVal">--</div>
+      </div>
+      <div class="status-card" id="card-packCursor">
+        <div class="label">Pack Cursor</div>
+        <div class="value" id="packCursorVal">--</div>
+      </div>
+      <div class="status-card" id="card-rosterCursor">
+        <div class="label">Roster Cursor</div>
+        <div class="value" id="rosterCursorVal">--</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sync Section -->
+  <div id="section-sync" class="section" style="display: none;">
+    <h2>Sync Control</h2>
+    
+    <div class="form-group">
+      <label>Sync Mode</label>
+      <select id="syncMode">
+        <option value="full">Full Sync (push + pull)</option>
+        <option value="pull">Pull Only</option>
+        <option value="push">Push Only</option>
+      </select>
+    </div>
+
+    <button id="btn-trigger-sync" class="nav button" style="width: 100%; margin: 1rem 0; padding: 0.75rem; font-size: 1rem;">
+      Trigger Sync
+    </button>
+
+    <div id="sync-response" class="response" role="alert"></div>
+
+    <h3>Sync Metrics</h3>
+    <div class="status-grid">
+      <div class="status-card">
+        <div class="label">Pushed Events</div>
+        <div class="value" id="metrics-pushed">0</div>
+      </div>
+      <div class="status-card">
+        <div class="label">Pulled Packs</div>
+        <div class="value" id="metrics-pulled">0</div>
+      </div>
+      <div class="status-card">
+        <div class="label">Errors</div>
+        <div class="value" id="metrics-errors">0</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = '/api/v1';
+
+    // Show response in UI
+    function showResponse(elementId, success, message) {
+      const el = document.getElementById(elementId);
+      el.textContent = message;
+      el.className = `response ${success ? 'success' : 'error'}`;
+      el.classList.add('show');
+    }
+
+    // Hide all response boxes
+    function hideResponses() {
+      document.querySelectorAll('.response.show').forEach(el => {
+        el.classList.remove('show');
+      });
+    }
+
+    // Load server status
+    async function loadStatus() {
+      try {
+        const resp = await fetch('/admin/status');
+        const data = await resp.json();
+        
+        // Update offline mode card
+        const offlineCard = document.getElementById('card-offlineMode');
+        offlineCard.className = `status-card ${data.offlineMode ? 'offline' : 'online'}`;
+        offlineCard.querySelector('.value').textContent = data.offlineMode ? 'ON' : 'OFF';
+        
+        // Update sync disabled card
+        const syncCard = document.getElementById('card-syncDisabled');
+        syncCard.className = `status-card ${data.syncDisabled ? 'offline' : 'online'}`;
+        syncCard.querySelector('.value').textContent = data.syncDisabled ? 'YES' : 'NO';
+        
+        // Update last sync
+        document.getElementById('lastSyncVal').textContent = data.lastSyncAt || '--';
+        
+        // Update pending events
+        document.getElementById('pendingEventsVal').textContent = data.pendingOutboxEvents || '0';
+        
+        // Update pack cursor
+        document.getElementById('packCursorVal').textContent = data.packCursor || '--';
+        
+        // Update roster cursor
+        document.getElementById('rosterCursorVal').textContent = data.rosterCursor || '--';
+        
+      } catch (err) {
+        showResponse('status-response', false, 'Failed to load status: ' + err.message);
+      }
+    }
+
+    // Trigger sync
+    async function triggerSync(mode = 'full') {
+      hideResponses();
+      const btn = document.getElementById('btn-trigger-sync');
+      btn.classList.add('loading');
+      
+      try {
+        const resp = await fetch('/admin/sync/trigger', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ mode }),
+        });
+        
+        const data = await resp.json();
+        
+        if (resp.ok) {
+          showResponse('sync-response', true, 
+            `Sync complete: pushed=${data.pushed}, pulled=${data.pulled.packs}, errors=${data.errors.length}`
+          );
+          
+          // Update metrics
+          document.getElementById('metrics-pushed').textContent = data.pushed || '0';
+          document.getElementById('metrics-pulled').textContent = data.pulled?.packs || '0';
+          document.getElementById('metrics-errors').textContent = data.errors?.length || '0';
+          
+          // Reload status after a moment
+          setTimeout(loadStatus, 500);
+        } else {
+          showResponse('sync-response', false, 
+            `Sync failed: ${data.detail || 'Unknown error'}`
+          );
+        }
+      } catch (err) {
+        showResponse('sync-response', false, 'Request failed: ' + err.message);
+      } finally {
+        btn.classList.remove('loading');
+      }
+    }
+
+    // Load section
+    async function loadSection(sectionId) {
+      // Hide all sections
+      document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+      document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+      
+      // Show selected section
+      document.getElementById('section-' + sectionId).style.display = 'block';
+      event.target.classList.add('active');
+      
+      // Load data for the section
+      if (sectionId === 'status') {
+        await loadStatus();
+      } else if (sectionId === 'sync') {
+        // Load current metrics
+        await loadStatus();
+      }
+    }
+
+    // Initial load
+    document.addEventListener('DOMContentLoaded', () => {
+      loadSection('status');
+      
+      // Trigger sync button
+      document.getElementById('btn-trigger-sync').addEventListener('click', () => {
+        const mode = document.getElementById('syncMode').value;
+        triggerSync(mode);
+      });
+    });
+  </script>
+</body>
+</html>

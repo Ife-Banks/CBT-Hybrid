@@ -7,6 +7,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { QuestionsModule } from './modules/questions/questions.module';
 import { ExamsModule } from './modules/exams/exams.module';
+import { SyncModule } from './modules/sync/sync.module';
 import { HealthModule } from './modules/health/health.module';
 import { LoggerModule } from './shared/logger/logger.module';
 
@@ -19,6 +20,7 @@ import { LoggerModule } from './shared/logger/logger.module';
     UsersModule,
     QuestionsModule,
     ExamsModule,
+    SyncModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },

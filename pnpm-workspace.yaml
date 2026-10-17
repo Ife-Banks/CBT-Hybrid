@@ -6,6 +6,7 @@ allowBuilds:
   esbuild: true
   '@swc/core': true
   argon2: true
+  '@scarf/scarf': true
 
 minimumReleaseAgeExclude:
   - '@casl/ability@7.0.2'

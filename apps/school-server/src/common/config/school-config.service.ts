@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { join, resolve } from 'node:path';
-import { EXAM_PACK_FOLDERS, SchoolEnv, loadSchoolEnv } from './school.config';
+import { EXAM_PACK_FOLDERS, SchoolEnv, loadSchoolEnv } from './school-config';
+import { z } from 'zod';
 
 /** Placeholder secret used outside production when `TICKET_SIGNING_SECRET` is unset. */
 const DEV_TICKET_SIGNING_SECRET = 'development-only-ticket-secret-do-not-use';
@@ -18,6 +19,11 @@ export class SchoolConfigService {
     return this.env[key];
   }
 
+  /** Whether the server should operate in offline mode. */
+  public isOfflineMode(): boolean {
+    return this.env.OFFLINE_MODE;
+  }
+
   /** Port to bind, preferring the local `SCHOOL_SERVER_PORT` override. */
   get port(): number {
     return this.env.SCHOOL_SERVER_PORT ?? this.env.PORT;
@@ -25,6 +31,11 @@ export class SchoolConfigService {
 
   get isProduction(): boolean {
     return this.env.NODE_ENV === 'production';
+  }
+
+  /** Cloud sync URL for the sync agent. */
+  get cloudSyncUrl(): string | undefined {
+    return this.env.cloudSyncUrl;
   }
 
   /**
