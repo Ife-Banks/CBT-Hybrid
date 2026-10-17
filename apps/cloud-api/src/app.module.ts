@@ -8,6 +8,10 @@ import { UsersModule } from './modules/users/users.module';
 import { QuestionsModule } from './modules/questions/questions.module';
 import { ExamsModule } from './modules/exams/exams.module';
 import { SyncModule } from './modules/sync/sync.module';
+import { ResultsModule } from './modules/results/results.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { ParentPortalModule } from './modules/parent-portal/parent-portal.module';
 import { HealthModule } from './modules/health/health.module';
 import { LoggerModule } from './shared/logger/logger.module';
 
@@ -20,6 +24,10 @@ import { LoggerModule } from './shared/logger/logger.module';
     UsersModule,
     QuestionsModule,
     ExamsModule,
+    NotificationsModule,
+    ResultsModule,
+    AnalyticsModule,
+    ParentPortalModule,
     SyncModule,
   ],
   providers: [

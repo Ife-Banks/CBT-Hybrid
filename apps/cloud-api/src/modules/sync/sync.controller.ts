@@ -5,10 +5,12 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Optional,
   Post,
   Query,
 } from '@nestjs/common';
 import { CloudSyncStore } from './sync.store';
+import { ResultsIntakeService, type SyncEvent } from '../results/results-intake.service';
 
 /**
  * Cloud Sync endpoints (API Spec section 15).
@@ -19,7 +21,10 @@ import { CloudSyncStore } from './sync.store';
  */
 @Controller('sync/v1')
 export class SyncController {
-  constructor(private readonly store: CloudSyncStore) {}
+  constructor(
+    private readonly store: CloudSyncStore,
+    @Optional() private readonly intake?: ResultsIntakeService,
+  ) {}
 
   /** POST /sync/v1/results - receive outbox events from a school server. */
   @Post('results')
@@ -29,7 +34,22 @@ export class SyncController {
     if (typeof type !== 'string' || !Array.isArray(events)) {
       throw new BadRequestException('Invalid sync payload: expected { type: string, events: unknown[] }');
     }
-    return this.store.receiveEvents(type, events);
+    const validation = this.store.receiveEvents(type, events);
+    if (!this.intake) return validation;
+
+    const validEvents = events.filter(
+      (event): event is SyncEvent =>
+        typeof (event as { event_id?: unknown })?.event_id === 'string' &&
+        (event as { event_id: string }).event_id.length > 0,
+    );
+    const outcomes = await this.intake.processBatch(type, validEvents);
+    const accepted = outcomes
+      .filter((outcome) => outcome.outcome !== 'rejected')
+      .map((outcome) => outcome.event_id);
+    const rejected = outcomes
+      .filter((outcome) => outcome.outcome === 'rejected')
+      .map((outcome) => outcome.event_id);
+    return { status: 'ok', accepted, rejected, results: outcomes };
   }
 
   /** GET /sync/v1/roster - roster records changed since `since`. */

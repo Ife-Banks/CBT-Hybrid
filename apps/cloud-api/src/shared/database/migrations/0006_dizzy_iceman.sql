@@ -1,0 +1,1 @@
+ALTER TABLE "remark_runs" ADD COLUMN "correction" jsonb;

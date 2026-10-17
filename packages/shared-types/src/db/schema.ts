@@ -26,6 +26,13 @@ export const examKindEnum = pgEnum('exam_kind', ['test', 'exam', 'practice', 'qu
 export const examStatusEnum = pgEnum('exam_status', ['draft', 'ready', 'published', 'archived']);
 export const sittingStatusEnum = pgEnum('sitting_status', ['scheduled', 'open', 'closed', 'cancelled']);
 
+// Phase 9: Results & Analytics Enums
+export const resultStatusEnum = pgEnum('result_status', ['draft', 'reviewed', 'released', 'withdrawn']);
+export const submissionStatusEnum = pgEnum('submission_status', ['active', 'voided']);
+export const remarkRunStatusEnum = pgEnum('remark_run_status', ['previewed', 'applied', 'cancelled']);
+export const notificationChannelEnum = pgEnum('notification_channel', ['email', 'sms', 'whatsapp', 'in_app']);
+export const notificationStatusEnum = pgEnum('notification_status', ['queued', 'sent', 'failed']);
+
 // Schools table
 export const schools = pgTable('schools', {
   id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
@@ -438,6 +445,143 @@ export const examPacks = pgTable('exam_packs', {
   sha256Idx: index('idx_exam_packs_sha256').on(table.sha256),
 }));
 
+// Phase 9: Results & Analytics Tables
+
+// Grade scales table (BR-18). `bands` is an array of
+// `{ min, max, grade, remark? }` covering 0..100 with no gaps or overlaps.
+export const gradeScales = pgTable('grade_scales', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  bands: jsonb('bands').notNull(),
+  isDefault: boolean('is_default').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  schoolIdx: index('idx_grade_scales_school').on(table.schoolId),
+  defaultIdx: index('idx_grade_scales_default').on(table.schoolId, table.isDefault),
+}));
+
+// Submissions table (uploaded from the school server; id = session_id).
+export const submissions = pgTable('submissions', {
+  id: text('id').primaryKey(),
+  schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  sittingId: text('sitting_id').notNull().references(() => sittings.id, { onDelete: 'cascade' }),
+  studentId: text('student_id').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  examId: text('exam_id').notNull().references(() => exams.id, { onDelete: 'cascade' }),
+  classId: text('class_id').references(() => classes.id, { onDelete: 'set null' }),
+  packVersion: integer('pack_version').notNull(),
+  keyVersion: integer('key_version').notNull().default(1),
+  seat: text('seat'),
+  startedAt: timestamp('started_at', { withTimezone: true }),
+  submittedAt: timestamp('submitted_at', { withTimezone: true }),
+  submitReason: text('submit_reason'),
+  status: submissionStatusEnum('status').notNull().default('active'),
+  schoolScore: numeric('school_score', { precision: 7, scale: 2 }),
+  cloudScore: numeric('cloud_score', { precision: 7, scale: 2 }),
+  focusLostCount: integer('focus_lost_count').notNull().default(0),
+  extraSeconds: integer('extra_seconds').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  sittingStudentUnique: unique('idx_submissions_sitting_student').on(table.sittingId, table.studentId),
+  schoolExamIdx: index('idx_submissions_school_exam').on(table.schoolId, table.examId),
+  studentIdx: index('idx_submissions_student').on(table.studentId),
+  examIdx: index('idx_submissions_exam').on(table.examId),
+}));
+
+// Final answers for a submission. `question_id` is intentionally not a foreign
+// key: an answer may reference a question version that has since been superseded.
+export const submissionAnswers = pgTable('submission_answers', {
+  submissionId: text('submission_id').notNull().references(() => submissions.id, { onDelete: 'cascade' }),
+  questionId: text('question_id').notNull(),
+  answer: jsonb('answer'),
+  flagged: boolean('flagged').notNull().default(false),
+  seq: integer('seq').notNull().default(0),
+  answeredAt: timestamp('answered_at', { withTimezone: true }),
+  cloudMarks: numeric('cloud_marks', { precision: 5, scale: 2 }),
+  maxMarks: numeric('max_marks', { precision: 5, scale: 2 }),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.submissionId, table.questionId] }),
+  questionIdx: index('idx_submission_answers_question').on(table.questionId),
+}));
+
+// Results table (BR-14 status machine: draft -> reviewed -> released | withdrawn).
+export const results = pgTable('results', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  submissionId: text('submission_id').notNull().references(() => submissions.id, { onDelete: 'cascade' }),
+  schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  studentId: text('student_id').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  examId: text('exam_id').notNull().references(() => exams.id, { onDelete: 'cascade' }),
+  subjectId: text('subject_id').references(() => subjects.id, { onDelete: 'set null' }),
+  classId: text('class_id').references(() => classes.id, { onDelete: 'set null' }),
+  score: numeric('score', { precision: 7, scale: 2 }).notNull(),
+  maxScore: numeric('max_score', { precision: 7, scale: 2 }).notNull(),
+  percent: numeric('percent', { precision: 5, scale: 2 }).notNull(),
+  grade: text('grade'),
+  keyVersion: integer('key_version').notNull().default(1),
+  status: resultStatusEnum('status').notNull().default('draft'),
+  revision: integer('revision').notNull().default(1),
+  reviewedBy: text('reviewed_by').references(() => users.id, { onDelete: 'set null' }),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+  releasedBy: text('released_by').references(() => users.id, { onDelete: 'set null' }),
+  releasedAt: timestamp('released_at', { withTimezone: true }),
+  withdrawnReason: text('withdrawn_reason'),
+  teacherComment: text('teacher_comment'),
+  updated: boolean('updated').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  submissionUnique: unique('idx_results_submission').on(table.submissionId),
+  parentViewIdx: index('idx_results_parent_view').on(table.studentId, table.status),
+  examClassIdx: index('idx_results_exam_class').on(table.examId, table.classId),
+  schoolStatusIdx: index('idx_results_school_status').on(table.schoolId, table.status),
+}));
+
+// Key-correction runs. A run previews the effect of a corrected answer key and
+// applies it only on confirmation (API spec 9.3), never editing the question.
+export const remarkRuns = pgTable('remark_runs', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  examId: text('exam_id').notNull().references(() => exams.id, { onDelete: 'cascade' }),
+  questionId: text('question_id').notNull(),
+  newQuestionId: text('new_question_id'),
+  reason: text('reason').notNull(),
+  requestedBy: text('requested_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  status: remarkRunStatusEnum('status').notNull().default('previewed'),
+  affected: integer('affected').notNull().default(0),
+  newKeyVersion: integer('new_key_version'),
+  correction: jsonb('correction'),
+  preview: jsonb('preview'),
+  appliedAt: timestamp('applied_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  examStatusIdx: index('idx_remark_runs_exam_status').on(table.examId, table.status),
+}));
+
+// Notifications table (API spec 11.2). No template ever contains a score.
+export const notifications = pgTable('notifications', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+  guardianId: text('guardian_id').references(() => guardians.id, { onDelete: 'set null' }),
+  studentId: text('student_id').references(() => students.id, { onDelete: 'set null' }),
+  resultId: text('result_id').references(() => results.id, { onDelete: 'set null' }),
+  channel: notificationChannelEnum('channel').notNull(),
+  template: text('template').notNull(),
+  payload: jsonb('payload'),
+  status: notificationStatusEnum('status').notNull().default('queued'),
+  attempts: integer('attempts').notNull().default(0),
+  error: text('error'),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
+  readAt: timestamp('read_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  schoolStatusIdx: index('idx_notifications_school_status').on(table.schoolId, table.status, table.createdAt),
+  guardianReadIdx: index('idx_notifications_guardian_read').on(table.guardianId, table.readAt),
+  userReadIdx: index('idx_notifications_user_read').on(table.userId, table.readAt),
+}));
+
 // Types
 export type School = typeof schools.$inferSelect;
 export type NewSchool = typeof schools.$inferInsert;
@@ -510,3 +654,22 @@ export type NewSitting = typeof sittings.$inferInsert;
 
 export type ExamPack = typeof examPacks.$inferSelect;
 export type NewExamPack = typeof examPacks.$inferInsert;
+
+// Phase 9: Results & Analytics Types
+export type GradeScale = typeof gradeScales.$inferSelect;
+export type NewGradeScale = typeof gradeScales.$inferInsert;
+
+export type Submission = typeof submissions.$inferSelect;
+export type NewSubmission = typeof submissions.$inferInsert;
+
+export type SubmissionAnswer = typeof submissionAnswers.$inferSelect;
+export type NewSubmissionAnswer = typeof submissionAnswers.$inferInsert;
+
+export type Result = typeof results.$inferSelect;
+export type NewResult = typeof results.$inferInsert;
+
+export type RemarkRun = typeof remarkRuns.$inferSelect;
+export type NewRemarkRun = typeof remarkRuns.$inferInsert;
+
+export type Notification = typeof notifications.$inferSelect;
+export type NewNotification = typeof notifications.$inferInsert;

@@ -3,8 +3,8 @@
 ## Current Status
 
 **Last Updated:** 2026
-**Current Phase:** Phase 6C (School Server Exam Delivery) - COMPLETED ✅
-**Next Phase:** Phase 7 (School Console) / Phase 8 (Sync) — see "Phase 6C scope" below
+**Current Phase:** Phase 9 (Results & Analytics) - COMPLETED ✅
+**Next Phase:** Phase 10 (Reporting & Exports) / Phase 11 (Hardening) — see the Phase 9 summary below
 
 ## Completed Phases
 
@@ -195,6 +195,67 @@ startup migrations applied).
 - Console API (section 17): PIN sign-in, overview/readiness, open/close sittings
 - Sync agent (section 13): push outbox events, pull roster/packs
 - Asset serving and integrity events (section 16.10)
+
+### Phase 7: Offline Mode Resilience & Admin Panel ✅
+**Status:** Complete
+- School-server offline resilience (retry/backoff, connectivity probes) and the
+  admin panel endpoints.
+- Committed as `98fca25`.
+
+### Phase 8: Sync System ✅
+**Status:** Complete
+- Conflict detection with version vectors (`sync_entity_versions`, three-way
+  merge against `base_json`), pluggable merge strategies (`local_wins`,
+  `remote_wins`, `newest_wins`, `merge`, `manual`).
+- Batched push/pull, sync metrics, cross-school isolation via namespaced keys
+  (`school:<schoolId>:<key>`) with legacy-key migration.
+- Roster delta driven by a numeric `roster_cursor`; cloud side keeps a versioned
+  in-memory `CloudSyncStore` so deltas and versions are demonstrable.
+- Migration `0003_sync_system.sql` (+ journal); tests across school-server and
+  cloud-api. Committed as `c613b60`.
+
+### Phase 9: Results & Analytics ✅
+**Status:** Complete (server-side/logic; document encoders deferred)
+
+**Deliverables:**
+- **Data model** (`packages/shared-types/src/db/schema.ts`): enums
+  `result_status`, `submission_status`, `remark_run_status`,
+  `notification_channel`, `notification_status`; tables `grade_scales`,
+  `submissions`, `submission_answers`, `results`, `remark_runs`, `notifications`.
+  Migrations `0005_past_redwing.sql` and `0006_dizzy_iceman.sql`.
+- **Marking & grading** (`results/domain/`): cloud re-marks submissions with the
+  shared `exam-core` engine; `grading.ts` owns the default A–F scale, band
+  validation and `percentOf`; `build-keys.ts` turns stored questions into pack
+  answer keys.
+- **Results service** (`results/results.service.ts`): `processSubmission`,
+  `recordSchoolScore` (cloud/school mismatch detection), `reviewResults`,
+  `releaseResults` (BR-14: reviewed-only, 409 with the unreviewed count),
+  `withdrawResults`, `voidSubmission`, key corrections
+  (`previewKeyCorrection` / `applyKeyCorrection` / `cancelKeyCorrection`,
+  BR-12/BR-15) and `generateResultReport` / `generateStudentReport`.
+- **Sync intake** (`results/results-intake.service.ts`): applies
+  `session.started|submitted|scored|reset` events idempotently; wired into
+  `POST /sync/v1/results` (the controller returns per-event `results[]`).
+- **Analytics** (`analytics/`): `calculateClassStatistics`,
+  `examStatistics`, `getPerformanceTrends`, `detectExamAnomalies`,
+  `generateDashboardData`, `classShare` with pure domain helpers for
+  statistics, trends and anomalies.
+- **Parent portal** (`parent-portal/`): children switcher, released-only
+  results, withdrawn → `under_review`, performance history; every query
+  enforces guardianship, `can_view_results` and released status (404, never 403).
+- **Notifications** (`notifications/`): queue (score-free templates), channel
+  selection (BR-21), log/retry/usage, simulated delivery sweep.
+- **HTTP**: `ResultsController`, `ExamKeyCorrectionsController`,
+  `GradeScaleController`, `ReportsController`, `AnalyticsController`,
+  `ParentPortalController`, `NotificationsController`; all wired into
+  `app.module.ts`. Repositories use Drizzle when `DATABASE_URL` is set and
+  in-memory implementations otherwise.
+
+**Verification:** shared-types 22, exam-core 104, school-server 117, cloud-api
+295 passed / 2 skipped; typecheck 11/11 tasks; build 9/9 tasks.
+
+**Deferred (by decision):** binary `.xlsx`/`.pdf` encoders (reports return the
+structured report), real email/SMS transport, and per-term grouping.
 
 ## Technical Patterns Established
 
