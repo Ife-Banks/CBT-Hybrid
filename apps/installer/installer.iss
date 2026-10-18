@@ -44,7 +44,6 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [CustomMessages]
 english.InstallingService=Installing the exam server service...
 english.StartingService=Starting the exam server service...
-english.PortInUse=TCP port %1 is already in use. Choose another port for the exam server.
 
 [Tasks]
 Name: "firewall"; Description: "Allow exam PCs on the local network (firewall rule scoped to this subnet)"; GroupDescription: "Windows settings:"
@@ -91,6 +90,7 @@ Type: filesandordirs; Name: "{app}\lab"
 [Code]
 var
   ServerPort: Integer;
+  PortPage: TInputQueryWizardPage;
 
 { Shell out to PowerShell to test whether a TCP port is accepting connections. }
 function PortInUse(Port: Integer): Boolean;
@@ -108,32 +108,56 @@ begin
     Result := False;
 end;
 
-function PortTextInUse(Text: String): Boolean;
+function ParsePort(Text: String): Integer;
 var
   Value: Integer;
 begin
-  Value := StrToIntDef(Text, {#DefaultPort});
-  Result := PortInUse(Value);
+  Value := StrToIntDef(Text, -1);
+  if (Value < 1) or (Value > 65535) then
+    Result := -1
+  else
+    Result := Value;
 end;
 
 function InitializeSetup(): Boolean;
-var
-  PortText: String;
 begin
   ServerPort := {#DefaultPort};
-  PortText := IntToStr(ServerPort);
-  while PortTextInUse(PortText) do
-  begin
-    if not InputQuery('Port in use',
-      'TCP port ' + PortText + ' is already in use.' + #13#10 + #13#10 +
-      'Choose another port for the exam server:', PortText) then
-    begin
-      Result := False;
-      Exit;
-    end;
-  end;
-  ServerPort := StrToIntDef(PortText, {#DefaultPort});
   Result := True;
+end;
+
+{ Ask for the port on its own wizard page and refuse one that is taken
+  (section 6.3 step 2). }
+procedure InitializeWizard();
+begin
+  PortPage := CreateInputQueryPage(wpSelectDir,
+    'Server port',
+    'Which TCP port should the exam server listen on?',
+    'The service and the firewall rule are configured for this port. The default is {#DefaultPort}.');
+  PortPage.Add('Port:', False);
+  PortPage.Values[0] := '{#DefaultPort}';
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+var
+  Value: Integer;
+begin
+  Result := True;
+  if CurPageID = PortPage.ID then
+  begin
+    Value := ParsePort(PortPage.Values[0]);
+    if Value < 0 then
+    begin
+      MsgBox('Enter a port between 1 and 65535.', mbError, MB_OK);
+      Result := False;
+    end
+    else if PortInUse(Value) then
+    begin
+      MsgBox('TCP port ' + IntToStr(Value) + ' is already in use. Choose another.', mbError, MB_OK);
+      Result := False;
+    end
+    else
+      ServerPort := Value;
+  end;
 end;
 
 function GetPort(Param: String): String;
@@ -184,14 +208,16 @@ end;
 { Point the service definition at the chosen port (defaults to 8080). }
 procedure ApplyServicePort();
 var
-  XmlPath, Content: String;
+  XmlPath, Text: String;
+  Raw: AnsiString;
 begin
   XmlPath := ExpandConstant('{app}\SchoolCBT.xml');
-  if LoadStringFromFile(XmlPath, Content) then
+  if LoadStringFromFile(XmlPath, Raw) then
   begin
-    StringChangeEx(Content, '<env name="PORT" value="8080" />',
+    Text := String(Raw);
+    StringChangeEx(Text, '<env name="PORT" value="8080" />',
       '<env name="PORT" value="' + IntToStr(ServerPort) + '" />', True);
-    SaveStringToFile(XmlPath, Content, False);
+    SaveStringToFile(XmlPath, AnsiString(Text), False);
   end;
 end;
 
@@ -224,7 +250,7 @@ begin
     '  "cloud_url": "",' + #13#10 +
     '  "second_backup_path": ""' + #13#10 +
     '}' + #13#10;
-  SaveStringToFile(ConfigPath, Json, False);
+  SaveStringToFile(ConfigPath, AnsiString(Json), False);
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);

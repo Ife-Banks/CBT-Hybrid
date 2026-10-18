@@ -20,6 +20,8 @@ function findIscc() {
     process.env.INNO_SETUP_ISCC,
     join(process.env['ProgramFiles(x86)'] ?? '', 'Inno Setup 6', 'ISCC.exe'),
     join(process.env.ProgramFiles ?? '', 'Inno Setup 6', 'ISCC.exe'),
+    // Per-user installs (winget without elevation).
+    join(process.env.LOCALAPPDATA ?? '', 'Programs', 'Inno Setup 6', 'ISCC.exe'),
     join(process.env['ProgramFiles(x86)'] ?? '', 'Inno Setup 5', 'ISCC.exe'),
   ].filter(Boolean);
   return candidates.find((candidate) => existsSync(candidate));

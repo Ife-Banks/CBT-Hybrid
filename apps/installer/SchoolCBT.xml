@@ -34,9 +34,11 @@
   <!-- Stable migration location, independent of the working directory. -->
   <env name="SCHOOL_MIGRATIONS_DIR" value="%BASE%\app\migrations" />
 
-  <!-- Low-privilege account; the installer grants it access to %ProgramData%\SchoolCBT. -->
+  <!-- Low-privilege account (WinSW v2 built-in account syntax); the installer
+       grants it access to %ProgramData%\SchoolCBT. -->
   <serviceaccount>
-    <username>NT AUTHORITY\LocalService</username>
+    <domain>NT AUTHORITY</domain>
+    <user>LocalService</user>
   </serviceaccount>
 
   <log mode="roll-by-size">

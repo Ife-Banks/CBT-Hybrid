@@ -42,8 +42,11 @@ never needs to write inside Program Files.
   PC needs no compiler, Python or internet.
 - **pnpm** (workspace build).
 - **[Inno Setup 6](https://jrsoftware.org/isdl.php)** — only to compile the
-  installer, not to assemble the tree. `ISCC.exe` is found in the usual
-  locations or via the `INNO_SETUP_ISCC` environment variable.
+  installer, not to assemble the tree. `ISCC.exe` is found under
+  `Program Files (x86)`, `Program Files`, or the per-user
+  `%LOCALAPPDATA%\Programs\Inno Setup 6` (where winget installs it), or via the
+  `INNO_SETUP_ISCC` environment variable. `winget install JRSoftware.InnoSetup`
+  works.
 - **[WinSW](https://github.com/winsw/winsw/releases)** — download
   `WinSW-x64.exe` and save it as `apps/installer/vendor/SchoolCBT.exe`
   (git-ignored). The build warns and continues without it; the installer cannot
