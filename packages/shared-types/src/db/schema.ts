@@ -18,8 +18,9 @@ export const subjectSectionEnum = pgEnum('subject_section', ['primary', 'seconda
 
 // Phase 5B: Additional Enums
 export const assetTypeEnum = pgEnum('asset_type', ['image', 'audio', 'video', 'document']);
-export const importJobKindEnum = pgEnum('import_job_kind', ['word', 'excel', 'csv', 'json']);
-export const importJobStatusEnum = pgEnum('import_job_status', ['pending', 'processing', 'completed', 'failed', 'cancelled']);
+export const importJobKindEnum = pgEnum('import_job_kind', ['word', 'excel', 'csv', 'json', 'questions_docx', 'questions_xlsx', 'students', 'guardians', 'teachers']);
+export const importJobStatusEnum = pgEnum('import_job_status', ['pending', 'processing', 'completed', 'failed', 'cancelled', 'queued', 'parsing', 'parsed']);
+export const importRowStatusEnum = pgEnum('import_row_status', ['ok', 'warning', 'error', 'skipped', 'imported']);
 
 // Phase 6: Exam Engine Enums
 export const examKindEnum = pgEnum('exam_kind', ['test', 'exam', 'practice', 'quiz']);
@@ -337,6 +338,10 @@ export const importJobs = pgTable('import_jobs', {
   status: importJobStatusEnum('status').notNull().default('pending'),
   fileAssetId: text('file_asset_id').references(() => assets.id, { onDelete: 'set null' }),
   uploadedBy: text('uploaded_by').notNull().references(() => users.id, { onDelete: 'set null' }),
+  sourceFile: text('source_file'),
+  subjectId: text('subject_id'),
+  levelId: text('level_id'),
+  failureReason: text('failure_reason'),
   totalRows: integer('total_rows').default(0),
   processedRows: integer('processed_rows').default(0),
   succeededRows: integer('succeeded_rows').default(0),
@@ -350,6 +355,22 @@ export const importJobs = pgTable('import_jobs', {
   schoolStatusIdx: index('idx_import_jobs_school_status').on(table.schoolId, table.status),
   uploaderIdx: index('idx_import_jobs_uploader').on(table.uploadedBy),
   createdAtIdx: index('idx_import_jobs_created').on(table.createdAt),
+}));
+
+// Parsed rows for an import job (API spec 7.3). Each row keeps the raw cell
+// values, the server's interpretation (`parsed`) and any validation errors.
+export const importJobRows = pgTable('import_job_rows', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()::text`),
+  jobId: text('job_id').notNull().references(() => importJobs.id, { onDelete: 'cascade' }),
+  rowNo: integer('row_no').notNull(),
+  status: importRowStatusEnum('status').notNull().default('ok'),
+  raw: jsonb('raw'),
+  parsed: jsonb('parsed'),
+  errors: jsonb('errors'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  jobRowIdx: index('idx_import_job_rows_job_row').on(table.jobId, table.rowNo),
+  jobStatusIdx: index('idx_import_job_rows_job_status').on(table.jobId, table.status),
 }));
 
 // Phase 6: Exam Engine Tables
@@ -667,6 +688,9 @@ export type NewQuestionAsset = typeof questionAssets.$inferInsert;
 
 export type ImportJob = typeof importJobs.$inferSelect;
 export type NewImportJob = typeof importJobs.$inferInsert;
+
+export type ImportJobRow = typeof importJobRows.$inferSelect;
+export type NewImportJobRow = typeof importJobRows.$inferInsert;
 
 // Phase 6: Exam Engine Types
 export type Class = typeof classes.$inferSelect;

@@ -17,6 +17,7 @@ import { ParentPortalModule } from './modules/parent-portal/parent-portal.module
 import { SettingsModule } from './modules/settings/settings.module';
 import { ExportsModule } from './modules/exports/exports.module';
 import { StudentDataModule } from './modules/student-data/student-data.module';
+import { ImportsModule } from './modules/imports/imports.module';
 import { HealthModule } from './modules/health/health.module';
 import { LoggerModule } from './shared/logger/logger.module';
 
@@ -39,6 +40,7 @@ import { LoggerModule } from './shared/logger/logger.module';
     AuditModule,
     ExportsModule,
     StudentDataModule,
+    ImportsModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },

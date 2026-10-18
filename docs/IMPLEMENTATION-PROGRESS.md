@@ -357,6 +357,39 @@ metrics (the cloud schema has no device table).
 - New `student-data` module with a `STUDENT_DATA_REPOSITORY` port (Drizzle +
   in-memory), reusing the settings retention rule and the audit log.
 
+### Import pipeline (§7) ✅
+**Status:** Complete — templates, upload, parse, row preview/fix/skip, confirm,
+cancel and report.
+
+**Deliverables:**
+- `GET /imports/templates/:kind.:ext` — generated templates for questions
+  (csv/xlsx/docx), students, guardians and teachers (csv/xlsx).
+- `POST /imports` — multipart upload (field `file`, plus `kind` and, for
+  questions, `subject_id`/`level_id`). Returns `202 { id, status: "queued" }`.
+  Files over 10 MB, macro-enabled workbooks, a wrong extension and files past
+  the row cap (200 questions / 5000 rows) are rejected with
+  `IMPORT_FILE_REJECTED`.
+- `GET /imports`, `GET /imports/:id`, `GET /imports/:id/rows` (status filter +
+  cursor), `PATCH /imports/:id/rows/:rowId` (fix and re-validate),
+  `POST /imports/:id/rows/:rowId/skip`, `POST /imports/:id/confirm` (idempotent),
+  `DELETE /imports/:id` and `GET /imports/:id/report.csv`.
+- Parsers: RFC-4180 CSV, a dependency-free `.xlsx` reader (shared strings +
+  inline strings) and a `.docx` paragraph→question reader. One validator per
+  kind emits the documented codes (`ANSWER_MATCHES_NO_OPTION`, `TOO_FEW_OPTIONS`,
+  `DUPLICATE_OPTIONS`, `LIKELY_DUPLICATE`, `MARKS_INVALID`, `IMAGE_NOT_FOUND`,
+  plus student/guardian/teacher codes).
+- New `imports` module with an `IMPORT_REPOSITORY` port (Drizzle + in-memory);
+  confirm creates question drafts, students, guardians (+ links) and invited
+  teacher accounts. Authorisation is `import` on the kind's subject, so teachers
+  can import questions only and School Admin everything.
+- Migration `0009_even_raza.sql` (extends the import-job enums, adds
+  `import_job_rows` and the `source_file`/`subject_id`/`level_id`/
+  `failure_reason` columns).
+
+**Deferred (by decision):** the `images.zip` companion upload, so a non-empty
+`image` column reports `IMAGE_NOT_FOUND`; and real Excel formula/style fidelity
+(only cell values are read).
+
 ## Technical Patterns Established
 
 ### Repository Pattern

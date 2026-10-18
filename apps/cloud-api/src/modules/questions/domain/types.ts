@@ -156,8 +156,25 @@ export interface CreateQuestionAssetDto {
 export interface ImportJobDomainRecord {
   id: string;
   schoolId: string;
-  kind: 'word' | 'excel' | 'csv' | 'json';
-  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+  kind:
+    | 'word'
+    | 'excel'
+    | 'csv'
+    | 'json'
+    | 'questions_docx'
+    | 'questions_xlsx'
+    | 'students'
+    | 'guardians'
+    | 'teachers';
+  status:
+    | 'pending'
+    | 'processing'
+    | 'completed'
+    | 'failed'
+    | 'cancelled'
+    | 'queued'
+    | 'parsing'
+    | 'parsed';
   fileAssetId?: string;
   uploadedBy: string;
   totalRows: number;
@@ -172,12 +189,29 @@ export interface ImportJobDomainRecord {
 }
 
 export interface CreateImportJobDto {
-  kind: 'word' | 'excel' | 'csv' | 'json';
+  kind:
+    | 'word'
+    | 'excel'
+    | 'csv'
+    | 'json'
+    | 'questions_docx'
+    | 'questions_xlsx'
+    | 'students'
+    | 'guardians'
+    | 'teachers';
   fileAssetId: string;
 }
 
 export interface UpdateImportJobDto {
-  status?: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+  status?:
+    | 'pending'
+    | 'processing'
+    | 'completed'
+    | 'failed'
+    | 'cancelled'
+    | 'queued'
+    | 'parsing'
+    | 'parsed';
   totalRows?: number;
   processedRows?: number;
   succeededRows?: number;
