@@ -460,9 +460,10 @@ cancel and report.
 - `checkForUpdate()` posts the heartbeat (`POST /sync/v1/heartbeat`, API spec
   13.8) and records the offered release in `meta`. The request carries the fields
   this server already knows (`software_version`, `os_version`, `platform`,
-  `uptime_seconds`, `db_size_mb`, `disk_free_mb`, `open_sittings`); cursor, pack
-  list, outbox counts and backup times arrive when the sync agent's heartbeat
-  lands. Like the rest of the sync code the call is unsigned today.
+  `uptime_seconds`, `db_size_mb`, `disk_free_mb`, `last_backup_at`,
+  `last_backup_ok`, `open_sittings`); cursor, pack list and outbox counts arrive
+  when the sync agent's heartbeat lands. Like the rest of the sync code the call
+  is unsigned today.
 - `downloadUpdate()` streams the release to `<dataDir>/updates/`, hashing as it
   goes, and only stages it when the SHA-256 matches the offer. Non-http(s) URLs
   and a package for the version already running are refused.
@@ -487,9 +488,58 @@ cancel and report.
   the sitting rules, refusal to elevate, result read-back) and
   `update.e2e.spec.ts` (routes, sitting guard, applying once closed), plus a
   packaged smoke test with a fake cloud: heartbeat → offer → verified download.
-- **Deferred (M12 remainder):** restore from backup or from the cloud, and the
-  console Apply button (the console UI is still M11-deferred). The swap itself
-  still has to be proven on a Windows VM.
+- **Deferred (M12 remainder):** restore from the cloud (`PUT /sync/v1/backups/:name`
+  and `GET /sync/v1/backups/latest`, API spec 13.9), the console Apply button (the
+  console UI is still M11-deferred) and the VM drills. The swap itself still has to
+  be proven on a Windows VM.
+
+### Backups and restore (M12, fourth slice) ✅
+- `BackupService` (`modules/backup/`) takes full copies of the live database with
+  the SQLite backup API (`DrizzleSqliteService.backupTo`), which is safe while the
+  Exam API is serving. Copies are named `school-YYYYMMDD-HHmmss.db`, hashed with
+  SHA-256, copied to the configured second location (a USB drive or a share,
+  otherwise the backup still succeeds and the warning is logged), recorded in
+  `backup_log` and pruned to the newest `BACKUP_RETENTION` (default 30, US-15.4).
+- They run after every sitting closes (hooked into `ConsoleService.closeSitting`,
+  and a failed backup never fails the close) and nightly at `BACKUP_HOUR` (default
+  22:00) via `BACKUP_CHECK_MINUTES` (default 15, 0 disables). "Once per day" is
+  decided from the log, so a server that was off at 22:00 still backs up when it
+  comes back.
+- The database is also copied before a schema migration runs
+  (`backups/pre-migration`, newest 3 kept). Only genuine upgrades are copied — a
+  fresh database has nothing to lose, which keeps first-run startup silent.
+  `backups/pre-update`, written by the installer and the updater, is left alone.
+- Local backups live in `C:\ProgramData\SchoolCBT\backups`, beside `data\`, which is
+  where the installer and the update helper already write (CBT-04 section 6.1).
+- Console API: `GET /api/v1/console/backups` (every local, pre-update,
+  pre-migration, pre-restore and second-location file with size and checksum),
+  `POST /api/v1/console/backup/now`, `GET /api/v1/console/restore` (candidates,
+  what blocks a restore, the last result) and `POST /api/v1/console/restore`.
+- A restore verifies the source is a `.db` inside a backup folder (a USB copy is
+  refused until it is copied into `backups\`, which stops a stray path from
+  overwriting the database), is refused with `CONFLICT` while a sitting is `open`
+  or starts within two hours, then writes `backups/SchoolCBT-Restore.cmd` and asks
+  for elevation on it — the same consent model as an update, because the service
+  runs as `LocalService`.
+- `tools/restore-backup.ps1` checks the file really is a SQLite database, stops the
+  service, takes a safety copy into `backups/pre-restore` (newest 3 kept), removes
+  the `-wal`/`-shm` sidecars, puts the backup in place, restarts and polls
+  `/api/v1/exam/status` for 60 seconds, rolling back to the safety copy if the
+  server does not come back. It reports `restored` or `restore_failed` in
+  `backups/last-restore.json`, which the status endpoint reads back.
+- `GET /health` now carries a `backup` check (missing/failed is an error, older
+  than 48 hours is degraded, matching the CBT-01 flags) and `GET /health/details`
+  reports `databaseIntegrity` from `PRAGMA integrity_check`; both feed the
+  heartbeat's `last_backup_*` fields.
+- The operator recovery guide is `docs/runbooks/recovery.md`: restores from the
+  local folder, the second location and a USB copy, replacing a dead PC, a corrupt
+  database, a failed update and the pre-exam checks.
+- Covered by `backup.service.spec.ts` (checksums, second location, pruning,
+  listing, the sitting rules, elevation refusal, bad sources, the nightly timer)
+  and `backup.e2e.spec.ts` (routes, backup-after-close, the guard, a restore
+  between sittings).
+- **Deferred:** the cloud backup upload/download (API spec 13.9) and the restore
+  drill on a Windows VM.
 
 ## Technical Patterns Established
 

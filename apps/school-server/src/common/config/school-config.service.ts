@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { EXAM_PACK_FOLDERS, SchoolEnv, loadSchoolEnv } from './school-config';
 
 /** Placeholder secret used outside production when `TICKET_SIGNING_SECRET` is unset. */
@@ -64,6 +64,50 @@ export class SchoolConfigService {
   /** Directory holding downloaded update packages and the updater's result file. */
   get updatesDir(): string {
     return join(this.dataDir, 'updates');
+  }
+
+  /**
+   * Local backup folder (CBT-04 section 6.1). It is a sibling of the data
+   * folder — `C:\ProgramData\SchoolCBT\backups` — which is where the installer
+   * and the update/restore helpers already write.
+   */
+  get backupsDir(): string {
+    return join(dirname(this.dataDir), 'backups');
+  }
+
+  /** Database copies the installer and the updater take before they change anything. */
+  get preUpdateBackupsDir(): string {
+    return join(this.backupsDir, 'pre-update');
+  }
+
+  /** Database copies taken before a schema migration runs (CBT-04 section 5.9). */
+  get preMigrationBackupsDir(): string {
+    return join(this.backupsDir, 'pre-migration');
+  }
+
+  /** Database copies taken before a restore overwrites the live database. */
+  get preRestoreBackupsDir(): string {
+    return join(this.backupsDir, 'pre-restore');
+  }
+
+  /** Minutes between background backup checks; 0 disables the nightly timer. */
+  get backupCheckMinutes(): number {
+    return this.env.BACKUP_CHECK_MINUTES;
+  }
+
+  /** How many local backups to keep. */
+  get backupRetention(): number {
+    return this.env.BACKUP_RETENTION;
+  }
+
+  /** Local hour of the nightly backup. */
+  get backupHour(): number {
+    return this.env.BACKUP_HOUR;
+  }
+
+  /** Restore script shipped by the installer (CBT-04 section 6.6). */
+  get restoreScript(): string {
+    return join(this.installDir, 'tools', 'restore-backup.ps1');
   }
 
   /** Whether the server applies a staged update automatically between sittings. */

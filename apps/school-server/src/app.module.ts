@@ -12,6 +12,7 @@ import { LoggerModule } from './shared/logger/logger.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { SetupModule } from './modules/setup/setup.module';
 import { UpdateModule } from './modules/update/update.module';
+import { BackupModule } from './modules/backup/backup.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { UpdateModule } from './modules/update/update.module';
     SyncModule,
     AdminModule,
     SetupModule,
+    BackupModule,
     UpdateModule,
   ],
   providers: [

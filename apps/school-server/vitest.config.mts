@@ -23,5 +23,9 @@ export default defineConfig({
     // e2e specs boot a full Nest app in `beforeAll`; under `turbo` parallel runs
     // that can exceed the 10s default and fail the hook.
     hookTimeout: 30_000,
+    // Backup tests write and hash real (small) SQLite files. Under a parallel
+    // `pnpm -r test` run the machine is saturated and on-access virus scanning
+    // makes single tests that take milliseconds alone cross the 5s default.
+    testTimeout: 30_000,
   },
 });

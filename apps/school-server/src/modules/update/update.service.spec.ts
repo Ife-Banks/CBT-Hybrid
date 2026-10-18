@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { SchoolConfigService } from '../../common/config/school-config.service';
+import type { BackupService } from '../backup/backup.service';
 import * as schema from '../../shared/database/schema';
 import { DrizzleCatalogRepository } from '../exam/repositories/drizzle-catalog.repository';
 import { DrizzleMetaRepository } from '../exam/repositories/drizzle-meta.repository';
@@ -36,6 +37,7 @@ describe('UpdateService', () => {
   let meta: DrizzleMetaRepository;
   let catalog: DrizzleCatalogRepository;
   let runner: UpdaterRunner & { run: ReturnType<typeof vi.fn> };
+  let backups: { lastBackup: ReturnType<typeof vi.fn> };
   let http: ReturnType<typeof vi.fn>;
   let scratch: string;
   let offer: UpdateOffer | null;
@@ -55,7 +57,14 @@ describe('UpdateService', () => {
       isOfflineMode: () => false,
       ...overrides,
     } as unknown as SchoolConfigService;
-    return new UpdateService(meta, catalog, runner, http as unknown as typeof fetch, config);
+    return new UpdateService(
+      meta,
+      catalog,
+      runner,
+      http as unknown as typeof fetch,
+      config,
+      backups as unknown as BackupService,
+    );
   }
 
   /** A sitting that references the rows SQLite's foreign keys demand. */
@@ -112,6 +121,7 @@ describe('UpdateService', () => {
     meta = new DrizzleMetaRepository(memory.service);
     catalog = new DrizzleCatalogRepository(memory.service);
     runner = { run: vi.fn(async () => ({ started: true })) };
+    backups = { lastBackup: vi.fn(async () => null) };
     scratch = mkdtempSync(join(tmpdir(), 'cbt-update-'));
     offer = { ...OFFER };
     heartbeatStatus = 200;
@@ -164,7 +174,21 @@ describe('UpdateService', () => {
     const body = JSON.parse(String(init.body)) as Record<string, unknown>;
     expect(body.software_version).toBe(status.current_version);
     expect(typeof body.db_size_mb).toBe('object'); // null when the file is absent
+    expect(body.last_backup_at).toBeNull();
+    expect(body.last_backup_ok).toBeNull();
     expect(body.open_sittings).toEqual([]);
+  });
+
+  it('reports the last backup in the heartbeat', async () => {
+    const at = '2026-10-19T22:00:00.000Z';
+    backups.lastBackup.mockResolvedValueOnce({ at, ok: true });
+
+    await build().checkForUpdate();
+
+    const [, init] = http.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+    expect(body.last_backup_at).toBe(at);
+    expect(body.last_backup_ok).toBe(true);
   });
 
   it('forgets a release the heartbeat no longer offers', async () => {

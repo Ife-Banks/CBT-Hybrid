@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../../shared/database/database.module';
+import { BackupModule } from '../backup/backup.module';
 import { DrizzleCatalogRepository } from '../exam/repositories/drizzle-catalog.repository';
 import { DrizzleMetaRepository } from '../exam/repositories/drizzle-meta.repository';
 import { CATALOG_REPOSITORY } from '../exam/repositories/catalog.repository';
@@ -13,7 +14,7 @@ import { UPDATER_RUNNER, ElevatingUpdaterRunner } from './updater.runner';
  * download and the guarded apply that hands off to the elevated updater.
  */
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, BackupModule],
   controllers: [UpdateController],
   providers: [
     UpdateService,

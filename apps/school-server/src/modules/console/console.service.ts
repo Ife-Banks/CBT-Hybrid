@@ -1,17 +1,20 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { randomBytes } from 'node:crypto';
 import { META_KEYS, META_REPOSITORY, type MetaRepository } from '../exam/repositories/meta.repository';
 import { CATALOG_REPOSITORY, type CatalogRepository } from '../exam/repositories/catalog.repository';
+import { BackupService } from '../backup/backup.service';
 import { problem } from '../../common/http/problem';
 
 @Injectable()
 export class ConsoleService {
   private loginAttempts = new Map<string, { count: number; lockedUntil: number }>();
+  private readonly logger = new Logger(ConsoleService.name);
 
   constructor(
     @Inject(META_REPOSITORY) private readonly metaRepo: MetaRepository,
     @Inject(CATALOG_REPOSITORY) private readonly catalogRepo: CatalogRepository,
+    private readonly backups: BackupService,
   ) {}
 
   async login(pin: string, label?: string) {
@@ -91,6 +94,17 @@ export class ConsoleService {
 
   async closeSitting(sittingId: string) {
     await this.catalogRepo.closeSitting(sittingId);
+    // Results are safest on disk right after a sitting, so a backup runs here
+    // too (US-15.4). A failed backup must not fail closing the sitting.
+    try {
+      await this.backups.createBackup('sitting');
+    } catch (error) {
+      this.logger.warn(
+        `Backup after closing sitting ${sittingId} failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
     return { success: true };
   }
 }

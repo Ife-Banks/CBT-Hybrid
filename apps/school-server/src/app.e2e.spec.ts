@@ -42,6 +42,8 @@ describe('school-server foundation (e2e)', () => {
     expect(res.body.services.database.status).toBe('ok');
     expect(res.body.services.filesystem.status).toBe('ok');
     expect(res.body.services.memory.status).toBe('ok');
+    // A server that has never backed up says so rather than claiming health.
+    expect(res.body.services.backup.status).toBe('degraded');
     expect(res.body.services.sync).toBeDefined();
     expect(res.headers['x-request-id']).toBeTruthy();
   });
@@ -51,6 +53,7 @@ describe('school-server foundation (e2e)', () => {
 
     expect(res.body.status).toBe('ok');
     expect(res.body.service).toBe('school-server');
+    expect(res.body.databaseIntegrity).toBe('ok');
     expect(res.body.sync).toBeDefined();
     expect(res.body.sync.offlineMode).toBeDefined();
     expect(res.body.sync.cloudSyncUrl).toBeDefined();

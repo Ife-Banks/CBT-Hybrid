@@ -24,6 +24,7 @@ pnpm-debug.log*
 
 # Databases / local data
 data/
+backups/
 *.db
 *.sqlite
 *.sqlite3

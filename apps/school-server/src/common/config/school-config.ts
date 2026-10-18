@@ -49,6 +49,12 @@ export const SchoolEnvSchema = z.object({
   UPDATE_CHECK_MINUTES: z.coerce.number().int().min(0).max(1440).default(5),
   /** Install root holding `node.exe`, `app/` and `tools/`; used to find the updater. */
   UPDATE_INSTALL_DIR: z.string().min(1).optional(),
+  /** Minutes between background backup checks; 0 disables them (CBT-04 section 6.6). */
+  BACKUP_CHECK_MINUTES: z.coerce.number().int().min(0).max(1440).default(15),
+  /** How many local backups to keep (US-15.4 says the latest 30). */
+  BACKUP_RETENTION: z.coerce.number().int().min(1).max(365).default(30),
+  /** Local hour (0-23) of the nightly backup. */
+  BACKUP_HOUR: z.coerce.number().int().min(0).max(23).default(22),
 });
 
 export type SchoolEnv = z.infer<typeof SchoolEnvSchema>;

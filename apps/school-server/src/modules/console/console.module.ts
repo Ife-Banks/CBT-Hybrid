@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../../shared/database/database.module';
+import { BackupModule } from '../backup/backup.module';
 import { ConsoleController } from './console.controller';
 import { ConsoleService } from './console.service';
 import {
@@ -14,7 +15,7 @@ import {
  * Provides PIN sign-in, overview/readiness dashboard, and sitting management.
  */
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, BackupModule],
   controllers: [ConsoleController],
   providers: [
     ConsoleService,

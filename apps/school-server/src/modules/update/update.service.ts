@@ -33,6 +33,7 @@ import {
   META_REPOSITORY,
   type MetaRepository,
 } from '../exam/repositories/meta.repository';
+import { BackupService } from '../backup/backup.service';
 import { UPDATER_RUNNER, type UpdaterRunner } from './updater.runner';
 
 /** Injection token for the HTTP client used for the heartbeat and the download. */
@@ -108,6 +109,7 @@ export class UpdateService implements OnModuleInit, OnModuleDestroy {
     @Inject(UPDATER_RUNNER) private readonly updater: UpdaterRunner,
     @Inject(UPDATE_HTTP) private readonly http: typeof fetch,
     private readonly config: SchoolConfigService,
+    private readonly backups: BackupService,
   ) {}
 
   onModuleInit(): void {
@@ -318,6 +320,7 @@ export class UpdateService implements OnModuleInit, OnModuleDestroy {
 
   /** Report what this server knows; the sync agent adds cursor, packs and backups. */
   private async heartbeat(): Promise<Record<string, unknown>> {
+    const lastBackup = await this.backups.lastBackup();
     return {
       software_version: VERSION,
       os_version: release(),
@@ -325,6 +328,8 @@ export class UpdateService implements OnModuleInit, OnModuleDestroy {
       uptime_seconds: Math.floor(uptime()),
       db_size_mb: this.databaseSizeMb(),
       disk_free_mb: this.diskFreeMb(),
+      last_backup_at: lastBackup?.at ?? null,
+      last_backup_ok: lastBackup?.ok ?? null,
       open_sittings: [],
     };
   }
