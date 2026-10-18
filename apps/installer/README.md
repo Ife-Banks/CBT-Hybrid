@@ -85,11 +85,48 @@ lost.
 - If TCP 8080 is taken, prompts for another port and writes it to both
   `SchoolCBT.xml` (the service `PORT` env) and `ProgramData\SchoolCBT\config.json`.
 - On upgrade: stops and removes the old service, backs up `school.db` to
-  `backups\pre-update-<timestamp>.db`, then replaces files and re-registers.
+  `backups\pre-update-<timestamp>.db`, then replaces files and re-registers. An
+  upgrade keeps the port the service is already configured for, which the silent
+  update path relies on.
 - Adds the firewall rule scoped to `LocalSubnet` (task, on by default).
 - Disables sleep/hibernate and disk sleep on AC (task, on by default).
 - Writes the lab-PC shortcut files (task, on by default).
 - Opens `http://localhost:<port>/setup` on the finish page.
+
+## In-app updates (section 6.4)
+
+The exam server checks the cloud's heartbeat for a newer release, downloads it to
+`%ProgramData%\SchoolCBT\data\updates\`, verifies its SHA-256 and waits. The
+console API drives it:
+
+```
+GET  /api/v1/console/updates            status: offer, staged package, what blocks applying
+POST /api/v1/console/updates/check      ask the cloud (heartbeat)
+POST /api/v1/console/updates/download   download and verify the offered release
+POST /api/v1/console/updates/apply      hand off to the updater (409 while a sitting is open)
+```
+
+Applying is refused with `409 CONFLICT` while a sitting is `open` or starts within
+two hours. With `AUTO_UPDATE=true` the server stages and applies on its own timer
+(`UPDATE_CHECK_MINUTES`, default 5) once no sitting is in the way.
+
+The service runs as `LocalService`, so it cannot replace its own files under
+Program Files. `POST /updates/apply` therefore asks for elevation on
+`updates\SchoolCBT-Update.cmd`, which runs `tools\apply-update.ps1`:
+
+1. stops the service;
+2. backs up the database and the mutable part of the install folder
+   (`app\`, `node.exe`, `SchoolCBT.xml`, `VERSION.txt`) to `backups\pre-update\`;
+3. runs the downloaded installer silently (`/VERYSILENT /TASKS=""`);
+4. starts the service and polls `/api/v1/exam/status` for 60 seconds;
+5. on failure stops the service, restores the backup, restarts and records
+   `update_failed` in `updates\last-result.json`, which the server reports in its
+   next heartbeat. Migrations are forward-only, so the rollback restores the
+   pre-update database rather than migrating back down.
+
+A UAC prompt needs a desktop, so when the server has no interactive session the
+apply call reports the refusal and the operator runs
+`%ProgramData%\SchoolCBT\data\updates\SchoolCBT-Update.cmd` as administrator.
 
 ## Code signing (section 6.5)
 
@@ -101,10 +138,12 @@ until a certificate is available.
 
 ## Not yet implemented (deferred M12 items)
 
-- In-app update download, verify, apply and rollback (section 6.4).
 - Restore from backup / from the cloud.
 - Automated install tests on Windows 10/11 VMs with Defender and a third-party
-  antivirus (the section M12 acceptance tests).
+  antivirus (the section M12 acceptance tests). The update rollback in
+  particular still has to be exercised on a VM.
+- The console's Apply button (the invigilator console UI is a later milestone);
+  the update endpoints are reachable directly for now.
 - The QR code on the `/setup` page. The page itself, the console PIN, the second
   backup path and activation are implemented; the server address and the lab
   shortcut downloads stand in for the QR code for now.

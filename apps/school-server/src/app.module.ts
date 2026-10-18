@@ -11,6 +11,7 @@ import { DatabaseModule } from './shared/database/database.module';
 import { LoggerModule } from './shared/logger/logger.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { SetupModule } from './modules/setup/setup.module';
+import { UpdateModule } from './modules/update/update.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { SetupModule } from './modules/setup/setup.module';
     SyncModule,
     AdminModule,
     SetupModule,
+    UpdateModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },

@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { join, resolve } from 'node:path';
 import { EXAM_PACK_FOLDERS, SchoolEnv, loadSchoolEnv } from './school-config';
-import { z } from 'zod';
 
 /** Placeholder secret used outside production when `TICKET_SIGNING_SECRET` is unset. */
 const DEV_TICKET_SIGNING_SECRET = 'development-only-ticket-secret-do-not-use';
@@ -60,6 +59,32 @@ export class SchoolConfigService {
   /** Absolute path of the exam-pack root. */
   get examPacksDir(): string {
     return join(this.dataDir, 'exam-packs');
+  }
+
+  /** Directory holding downloaded update packages and the updater's result file. */
+  get updatesDir(): string {
+    return join(this.dataDir, 'updates');
+  }
+
+  /** Whether the server applies a staged update automatically between sittings. */
+  get autoUpdate(): boolean {
+    return this.env.AUTO_UPDATE;
+  }
+
+  /** Minutes between background update checks; 0 disables them. */
+  get updateCheckMinutes(): number {
+    return this.env.UPDATE_CHECK_MINUTES;
+  }
+
+  /** Install root holding `node.exe`, `app/` and `tools/`. */
+  get installDir(): string {
+    const fallback = join(process.env.ProgramFiles ?? 'C:\\Program Files', 'SchoolCBT');
+    return this.env.UPDATE_INSTALL_DIR ?? fallback;
+  }
+
+  /** Updater script shipped by the installer (CBT-04 section 6.4). */
+  get updaterScript(): string {
+    return join(this.installDir, 'tools', 'apply-update.ps1');
   }
 
   /** Absolute paths of the four exam-pack folders. */

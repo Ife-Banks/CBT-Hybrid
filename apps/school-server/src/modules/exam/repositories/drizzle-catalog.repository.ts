@@ -1,8 +1,16 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, count, eq } from 'drizzle-orm';
+import { and, count, eq, lte, or } from 'drizzle-orm';
 import { DrizzleSqliteService } from '../../../shared/database/drizzle-sqlite.service';
 import type { SqliteDB } from '../../../shared/database/drizzle-sqlite.service';
-import { classes, examSessions, exams, seats, sittings, students, subjects } from '../../../shared/database/schema';
+import {
+  classes,
+  examSessions,
+  exams,
+  seats,
+  sittings,
+  students,
+  subjects,
+} from '../../../shared/database/schema';
 import { toExamRecord, toSittingRecord, toStudentRecord } from '../domain/mappers';
 import type {
   ExamRecord,
@@ -117,6 +125,20 @@ export class DrizzleCatalogRepository implements CatalogRepository {
       .from(sittings)
       .where(eq(sittings.status, 'open'));
     return Number(rows[0]?.value ?? 0);
+  }
+
+  async findBlockingSitting(dueBefore: string): Promise<SittingRecord | null> {
+    const rows = await this.db
+      .select()
+      .from(sittings)
+      .where(
+        or(
+          eq(sittings.status, 'open'),
+          and(eq(sittings.status, 'scheduled'), lte(sittings.windowStart, dueBefore)),
+        ),
+      )
+      .limit(1);
+    return rows[0] ? toSittingRecord(rows[0]) : null;
   }
 
   async countInProgressSessions(): Promise<number> {

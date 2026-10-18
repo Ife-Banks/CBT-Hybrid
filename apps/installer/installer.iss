@@ -90,6 +90,9 @@ Type: filesandordirs; Name: "{app}\lab"
 [Code]
 var
   ServerPort: Integer;
+  { Port the existing installation already uses, or 0 on a fresh install. An
+    upgrade keeps it, and it is allowed to be "in use" because it is ours. }
+  ExistingServerPort: Integer;
   PortPage: TInputQueryWizardPage;
 
 { Shell out to PowerShell to test whether a TCP port is accepting connections. }
@@ -119,9 +122,38 @@ begin
     Result := Value;
 end;
 
+{ Port from an existing SchoolCBT.xml, or 0 when there is no installation. }
+function ExistingPort(): Integer;
+var
+  XmlPath, Text: String;
+  Raw: AnsiString;
+  P: Integer;
+begin
+  Result := 0;
+  XmlPath := ExpandConstant('{autopf}\SchoolCBT\SchoolCBT.xml');
+  if not FileExists(XmlPath) then
+    Exit;
+  if not LoadStringFromFile(XmlPath, Raw) then
+    Exit;
+  Text := String(Raw);
+  P := Pos('<env name="PORT" value="', Text);
+  if P = 0 then
+    Exit;
+  Delete(Text, 1, P + Length('<env name="PORT" value="') - 1);
+  P := Pos('"', Text);
+  if P = 0 then
+    Exit;
+  Result := StrToIntDef(Copy(Text, 1, P - 1), 0);
+end;
+
 function InitializeSetup(): Boolean;
 begin
+  ExistingServerPort := ExistingPort();
   ServerPort := {#DefaultPort};
+  { An upgrade keeps the port the service is already configured for (section
+    6.3); a silent update relies on this because the wizard never runs. }
+  if ExistingServerPort > 0 then
+    ServerPort := ExistingServerPort;
   Result := True;
 end;
 
@@ -134,7 +166,7 @@ begin
     'Which TCP port should the exam server listen on?',
     'The service and the firewall rule are configured for this port. The default is {#DefaultPort}.');
   PortPage.Add('Port:', False);
-  PortPage.Values[0] := '{#DefaultPort}';
+  PortPage.Values[0] := IntToStr(ServerPort);
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
@@ -150,7 +182,7 @@ begin
       MsgBox('Enter a port between 1 and 65535.', mbError, MB_OK);
       Result := False;
     end
-    else if PortInUse(Value) then
+    else if (Value <> ExistingServerPort) and PortInUse(Value) then
     begin
       MsgBox('TCP port ' + IntToStr(Value) + ' is already in use. Choose another.', mbError, MB_OK);
       Result := False;
@@ -201,7 +233,7 @@ begin
     BackupDir := ExpandConstant('{commonappdata}\SchoolCBT\backups');
     ForceDirectories(BackupDir);
     Stamp := GetDateTimeString('yyyy-mm-dd_hh-nn-ss', '-', ':');
-    FileCopy(DbPath, BackupDir + '\pre-update-' + Stamp + '.db', False);
+    CopyFile(DbPath, BackupDir + '\pre-update-' + Stamp + '.db', False);
   end;
 end;
 

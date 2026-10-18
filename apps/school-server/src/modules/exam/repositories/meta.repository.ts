@@ -16,6 +16,11 @@ export const META_KEYS = {
   setupCompletedAt: 'setup_completed_at',
   syncIntervalSeconds: 'sync_interval_seconds',
   initialCursor: 'initial_cursor',
+  // In-app update (CBT-04 section 6.4).
+  updateOffer: 'update_offer',
+  updateCheckedAt: 'update_checked_at',
+  updateCheckError: 'update_check_error',
+  updateStaged: 'update_staged',
 } as const;
 
 /** Prefix for the per-pack data key, stored base64 (`pack_key:<pack_id>`). */

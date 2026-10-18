@@ -449,9 +449,47 @@ cancel and report.
 - Covered by three specs: `setup.service.spec.ts`, `activation.service.spec.ts`,
   `device-secret.store.spec.ts`, plus `setup.e2e.spec.ts` (page, status, PIN
   once-only, backup path, lab shortcut, activation and completed setup).
-- **Deferred (M12 remainder):** in-app update/rollback (spec 6.4) and restore
-  from the cloud backup. The console page still has inline CSS/JS, so it is not
-  served yet.
+- **Deferred (M12 remainder):** restore from the cloud backup, and the QR code on
+  the setup page. The console page still has inline CSS/JS, so it is not served
+  yet.
+
+### In-app update and rollback (M12, third slice) ✅
+- The server side of CBT-04 section 6.4 exists: `UpdateService` +
+  `UpdateController` under `/api/v1/console/updates` (`GET` status, `POST check`,
+  `POST download`, `POST apply`).
+- `checkForUpdate()` posts the heartbeat (`POST /sync/v1/heartbeat`, API spec
+  13.8) and records the offered release in `meta`. The request carries the fields
+  this server already knows (`software_version`, `os_version`, `platform`,
+  `uptime_seconds`, `db_size_mb`, `disk_free_mb`, `open_sittings`); cursor, pack
+  list, outbox counts and backup times arrive when the sync agent's heartbeat
+  lands. Like the rest of the sync code the call is unsigned today.
+- `downloadUpdate()` streams the release to `<dataDir>/updates/`, hashing as it
+  goes, and only stages it when the SHA-256 matches the offer. Non-http(s) URLs
+  and a package for the version already running are refused.
+- `applyUpdate()` is refused with `CONFLICT` while a sitting is `open` or starts
+  within two hours (API spec 17.5), which needed a new
+  `findBlockingSitting(dueBefore)` on the catalog repository. It then writes
+  `updates/SchoolCBT-Update.cmd` and asks for elevation on it.
+- `tools/apply-update.ps1` does the swap in the elevated process: stop the
+  service, back up the database plus `app/`, `node.exe`, `SchoolCBT.xml` and
+  `VERSION.txt`, run the downloaded installer silently, start the service and
+  poll `/api/v1/exam/status` for 60 seconds. If it stays unhealthy it restores
+  the backup, restarts and records `update_failed` in `updates/last-result.json`,
+  which the status endpoint reads back and the next heartbeat can report.
+  Migrations are forward-only, so a rollback restores the pre-update database.
+- Auto-update (`AUTO_UPDATE=true`) stages and applies on a background timer when
+  no sitting is open or due within two hours; the interval is
+  `UPDATE_CHECK_MINUTES` (default 5, 0 disables it).
+- The installer preserves the configured port on upgrade (it reads
+  `SchoolCBT.xml` and treats that port as ours rather than "in use"), which the
+  silent update path depends on because the wizard never runs.
+- Covered by `update.service.spec.ts` (offer, checksum mismatch, staged helper,
+  the sitting rules, refusal to elevate, result read-back) and
+  `update.e2e.spec.ts` (routes, sitting guard, applying once closed), plus a
+  packaged smoke test with a fake cloud: heartbeat → offer → verified download.
+- **Deferred (M12 remainder):** restore from backup or from the cloud, and the
+  console Apply button (the console UI is still M11-deferred). The swap itself
+  still has to be proven on a Windows VM.
 
 ## Technical Patterns Established
 

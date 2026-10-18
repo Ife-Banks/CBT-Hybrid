@@ -31,20 +31,32 @@ export const SchoolEnvSchema = z.object({
    * development works out of the box; production must set it.
    */
   TICKET_SIGNING_SECRET: optionalSecret,
-   cloudSyncUrl: z.string().url().optional(),
+  cloudSyncUrl: z.string().url().optional(),
   /**
    * Indicates the server should operate in offline mode.
    * Set `SERVER_OFFLINE=true` in the environment to disable all outbound sync calls.
    */
-  OFFLINE_MODE: z.string().transform(val => val === 'true').default(false),
+  OFFLINE_MODE: z
+    .string()
+    .transform((val) => val === 'true')
+    .default(false),
+  /** Apply a staged update automatically between sittings (CBT-04 section 6.4). */
+  AUTO_UPDATE: z
+    .string()
+    .transform((val) => val === 'true')
+    .default(false),
+  /** Minutes between background update checks; 0 disables them. */
+  UPDATE_CHECK_MINUTES: z.coerce.number().int().min(0).max(1440).default(5),
+  /** Install root holding `node.exe`, `app/` and `tools/`; used to find the updater. */
+  UPDATE_INSTALL_DIR: z.string().min(1).optional(),
 });
 
 export type SchoolEnv = z.infer<typeof SchoolEnvSchema>;
 
- /** The four exam-pack folders (Phase 1 task 2). */
+/** The four exam-pack folders (Phase 1 task 2). */
 export const EXAM_PACK_FOLDERS = ['pending', 'active', 'completed', 'archive'] as const;
 
- /** Validate a school-server environment source. Throws on invalid values. */
+/** Validate a school-server environment source. Throws on invalid values. */
 export function loadSchoolEnv(source: NodeJS.ProcessEnv = process.env): SchoolEnv {
   const parsed = SchoolEnvSchema.safeParse(source);
   if (!parsed.success) {

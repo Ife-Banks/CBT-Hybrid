@@ -8,12 +8,12 @@
  *   node.exe                     Node runtime (copied from the running Node)
  *   app\server.cjs               bundled school server (esbuild)
  *   app\migrations\              drizzle migrations, pointed at by WinSW
- *   app\console\index.html       static console page
+ *   app\console\               setup page, console page, /static assets
  *   app\exam-client\             static exam client
  *   app\node_modules\            better-sqlite3, argon2, swagger-ui-dist
  *   SchoolCBT.exe                WinSW service wrapper (from vendor\, see README)
  *   SchoolCBT.xml                WinSW configuration
- *   tools\                       firewall / power / shortcut helpers
+ *   tools\                       firewall / power / shortcut / updater helpers
  *   VERSION.txt
  *
  * The tree is what `installer.iss` compiles. This script does not need Inno
