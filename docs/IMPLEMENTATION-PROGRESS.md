@@ -398,6 +398,28 @@ cancel and report.
 - An e2e test generates the document and asserts the health, auth, imports and
   student-data paths are present.
 
+### Windows service and installer (M12, first slice) ✅
+- `apps/installer` is no longer a placeholder. It now assembles and compiles a
+  real Windows deployment for the school server (CBT-04 section 6).
+- `build.mjs` builds the staging tree: bundles the school server to
+  `app/server.cjs` with esbuild, copies the console page, exam client and
+  migrations, ships `better-sqlite3`, `argon2` and `swagger-ui-dist`, copies the
+  Node runtime, and drops in `SchoolCBT.xml` and `tools/`.
+- `SchoolCBT.xml` is the WinSW service definition (automatic start, restart on
+  failure, `LocalService`, `CBT_DATA_DIR`/`SCHOOL_MIGRATIONS_DIR`, rolling logs).
+- `installer.iss` is the Inno Setup script: Windows 10 x64 guard, port probe with
+  alternate-port fallback, upgrade stop/backup/replace, service install/start,
+  local-subnet firewall rule, power settings, lab-PC shortcut files and the
+  first-run page.
+- `tools/*.ps1` add/remove the firewall rule, disable sleep/hibernate and write
+  the lab shortcuts (kiosk Chrome/Edge with the PC name as the seat label).
+- Verified by booting the bundled server: `/health` returns `ok` with the SQLite
+  database migrated from the shipped migrations folder, and `/docs` plus
+  `/docs-json` respond.
+- **Deferred (M12 remainder):** in-app update/rollback, DPAPI device secret,
+  restore from backup or cloud, and the server side of `/setup`. WinSW must be
+  placed in `apps/installer/vendor/` and Inno Setup installed to compile.
+
 ## Technical Patterns Established
 
 ### Repository Pattern

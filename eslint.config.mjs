@@ -15,6 +15,11 @@ export default tseslint.config(
       '**/coverage/**',
       'demo/**',
       'docs/**',
+      // Assembled installer tree (see apps/installer)
+      '**/staging/**',
+      '**/output/**',
+      '**/vendor/**',
+      '**/lab/**',
     ],
   },
   js.configs.recommended,

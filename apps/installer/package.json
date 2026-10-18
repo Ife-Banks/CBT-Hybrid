@@ -2,11 +2,17 @@
   "name": "@cbt/installer",
   "version": "0.0.0",
   "private": true,
-  "description": "Inno Setup script, WinSW configuration and build scripts for the Windows installer (placeholder).",
+  "description": "Windows service (WinSW) and Inno Setup installer for the school server.",
   "scripts": {
-    "build": "node ../../scripts/copy-static.mjs static dist",
+    "build": "node ../../scripts/noop.mjs build",
     "typecheck": "node ../../scripts/noop.mjs typecheck",
     "test": "node ../../scripts/noop.mjs test",
-    "clean": "node ../../scripts/noop.mjs clean"
+    "clean": "node ../../scripts/clean.mjs staging output",
+    "package:win": "node build.mjs",
+    "package:win:fast": "node build.mjs --skip-deps",
+    "compile": "node compile.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
   }
 }

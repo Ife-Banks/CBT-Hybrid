@@ -9,3 +9,9 @@ pnpm-lock.yaml
 docs/*.md
 demo/
 *.docx
+
+# Assembled installer tree and generated artifacts (see apps/installer)
+apps/installer/staging
+apps/installer/output
+apps/installer/vendor
+apps/installer/lab

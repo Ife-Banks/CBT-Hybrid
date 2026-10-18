@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  WinSW service definition for the School CBT exam server.
+  Spec: docs/CBT-04-Build-Specification.md section 6.2.
+
+  Installed to C:\Program Files\SchoolCBT\SchoolCBT.xml next to SchoolCBT.exe
+  (WinSW, renamed) and node.exe. %BASE% is the folder WinSW runs from.
+
+  Data lives outside Program Files under %ProgramData%\SchoolCBT so the service
+  can write to it without elevation (section 6.1).
+-->
+<service>
+  <id>SchoolCBT</id>
+  <name>School CBT Exam Server</name>
+  <description>Runs the school's offline exams.</description>
+
+  <executable>%BASE%\node.exe</executable>
+  <arguments>"%BASE%\app\server.cjs"</arguments>
+  <workingdirectory>%BASE%\app</workingdirectory>
+
+  <startmode>Automatic</startmode>
+
+  <!-- Keep the lab PC reachable even after a crash. -->
+  <onfailure action="restart" delay="5 sec" />
+  <onfailure action="restart" delay="5 sec" />
+  <onfailure action="restart" delay="30 sec" />
+  <resetfailure>1 day</resetfailure>
+
+  <env name="NODE_ENV" value="production" />
+  <env name="PORT" value="8080" />
+  <env name="LOG_LEVEL" value="info" />
+  <!-- Database, packs and logs live here (section 6.1). -->
+  <env name="CBT_DATA_DIR" value="%ProgramData%\SchoolCBT\data" />
+  <!-- Stable migration location, independent of the working directory. -->
+  <env name="SCHOOL_MIGRATIONS_DIR" value="%BASE%\app\migrations" />
+
+  <!-- Low-privilege account; the installer grants it access to %ProgramData%\SchoolCBT. -->
+  <serviceaccount>
+    <username>NT AUTHORITY\LocalService</username>
+  </serviceaccount>
+
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>10</keepFiles>
+  </log>
+
+  <stoptimeout>20 sec</stoptimeout>
+</service>

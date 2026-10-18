@@ -1,0 +1,11 @@
+# Assembled installer tree (node.exe, app bundle, WinSW wrapper)
+staging/
+
+# Compiled setup executable
+output/
+
+# Downloaded third-party binaries (WinSW). Not committed.
+vendor/
+
+# Lab shortcut files generated for copying to exam PCs
+lab/

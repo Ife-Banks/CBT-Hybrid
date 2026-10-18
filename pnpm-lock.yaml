@@ -286,7 +286,11 @@ importers:
 
   apps/exam-client: {}
 
-  apps/installer: {}
+  apps/installer:
+    devDependencies:
+      esbuild:
+        specifier: 0.25.12
+        version: 0.25.12
 
   apps/school-server:
     dependencies:
