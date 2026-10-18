@@ -390,6 +390,14 @@ cancel and report.
 `image` column reports `IMAGE_NOT_FOUND`; and real Excel formula/style fidelity
 (only cell values are read).
 
+### API documentation (Swagger) ✅
+- The cloud API now serves an OpenAPI document: Swagger UI at `/docs` and the
+  JSON at `/docs-json`, built with `@nestjs/swagger` (matching the school
+  server). Bearer auth is declared, and the document covers every registered
+  controller. Global-prefix routes appear under `/api/v1`.
+- An e2e test generates the document and asserts the health, auth, imports and
+  student-data paths are present.
+
 ## Technical Patterns Established
 
 ### Repository Pattern

@@ -2,6 +2,8 @@ import 'reflect-metadata';
 import { RequestMethod } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { type NestExpressApplication } from '@nestjs/platform-express';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { VERSION } from '@cbt/shared-types';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import { AppModule } from './app.module';
@@ -53,6 +55,27 @@ async function bootstrap(): Promise<void> {
   );
 
   app.enableShutdownHooks();
+
+  // OpenAPI documentation (Swagger UI at `/docs`, JSON at `/docs-json`). Not
+  // affected by the `/api/v1` global prefix, so probes and docs share the root.
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('CBT Cloud API')
+    .setDescription('Cloud REST and Sync API. All routes live under `/api/v1`.')
+    .setVersion(VERSION)
+    .addBearerAuth()
+    .addTag('Auth')
+    .addTag('Users')
+    .addTag('Questions')
+    .addTag('Exams')
+    .addTag('Results')
+    .addTag('Analytics')
+    .addTag('Notifications')
+    .addTag('Settings')
+    .addTag('Sync')
+    .addTag('Imports')
+    .build();
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('docs', app, document);
 
   const port = config.port;
   await app.listen(port);

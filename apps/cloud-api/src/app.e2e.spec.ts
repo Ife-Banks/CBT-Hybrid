@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import request from 'supertest';
@@ -78,6 +79,19 @@ describe('cloud-api foundation (e2e)', () => {
   it('sets security headers from helmet', async () => {
     const res = await request(app.getHttpServer()).get('/health').expect(200);
     expect(res.headers['x-content-type-options']).toBe('nosniff');
+  });
+
+  it('generates an OpenAPI document covering the cloud routes', () => {
+    const document = SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder().setTitle('CBT Cloud API').setVersion('0').build(),
+    );
+
+    expect(document.paths['/health']).toBeDefined();
+    expect(document.paths['/auth/login']).toBeDefined();
+    expect(document.paths['/imports']).toBeDefined();
+    expect(document.paths['/students/{id}/data-export']).toBeDefined();
+    expect(document.paths['/imports/templates/{file}']).toBeDefined();
   });
 
   // Keep this last: it deliberately exhausts the limiter for this test app.
