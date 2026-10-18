@@ -192,13 +192,14 @@ async function bundleServer() {
 }
 
 function copyStatic() {
-  // Console page: the school server's public folder becomes app/console.
+  // Web pages: the school server's public folder becomes app/console. The server
+  // serves `<dir>/setup.html` at `/setup` and `<dir>/*` at `/static/*`, so the
+  // whole folder is copied rather than just the console page.
   const consoleTarget = join(appDir, 'console');
-  mkdirSync(consoleTarget, { recursive: true });
-  const adminHtml = join(schoolServerDir, 'public', 'admin.html');
-  if (existsSync(adminHtml)) {
-    copyFileSync(adminHtml, join(consoleTarget, 'index.html'));
-    log('copied console page -> app/console/index.html');
+  const webPublic = join(schoolServerDir, 'public');
+  if (existsSync(webPublic)) {
+    cpSync(webPublic, consoleTarget, { recursive: true });
+    log('copied school-server pages -> app/console');
   }
 
   // Exam client: its public folder becomes app/exam-client.

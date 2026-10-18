@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>School CBT &mdash; first-run setup</title>
+    <link rel="stylesheet" href="/static/setup.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="page-header">
+        <h1>School CBT &mdash; first-run setup</h1>
+        <p class="muted">
+          Four short steps. Activation needs internet once; the console PIN, the backup location and
+          the lab shortcut all work offline.
+        </p>
+      </header>
+
+      <section class="card">
+        <h2>Status</h2>
+        <dl class="status">
+          <dt>Server address</dt>
+          <dd id="s-address">&hellip;</dd>
+          <dt>School</dt>
+          <dd id="s-school">&hellip;</dd>
+          <dt>Console PIN</dt>
+          <dd id="s-pin">&hellip;</dd>
+          <dt>Second backup</dt>
+          <dd id="s-backup">&hellip;</dd>
+          <dt>Activated</dt>
+          <dd id="s-activated">&hellip;</dd>
+          <dt>Setup complete</dt>
+          <dd id="s-complete">&hellip;</dd>
+        </dl>
+        <p class="actions">
+          <a class="button" href="/api/v1/setup/lab-shortcut.url" download
+            >Download lab shortcut (.url)</a
+          >
+          <a class="button" href="/api/v1/setup/lab-shortcut.bat" download
+            >Download kiosk launcher (.bat)</a
+          >
+        </p>
+        <p class="muted">
+          Copy both files to every lab PC. The launcher reads the seat label from the PC name, so
+          one file works everywhere.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>1. School name</h2>
+        <form id="form-school">
+          <label for="school-name">School name</label>
+          <input id="school-name" name="name" required maxlength="200" autocomplete="off" />
+          <button type="submit">Save name</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>2. Console PIN</h2>
+        <form id="form-pin">
+          <label for="pin">Console PIN (six digits)</label>
+          <input id="pin" name="pin" inputmode="numeric" pattern="\d{6}" maxlength="6" required />
+          <label for="pin-confirm">Repeat PIN</label>
+          <input
+            id="pin-confirm"
+            name="pin_confirm"
+            inputmode="numeric"
+            pattern="\d{6}"
+            maxlength="6"
+            required
+          />
+          <button type="submit">Set PIN</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>3. Second backup location</h2>
+        <form id="form-backup">
+          <label for="backup-path">Folder (USB drive or network share)</label>
+          <input id="backup-path" name="path" required placeholder="E:\SchoolCBT\backups" />
+          <button type="submit">Save location</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>4. Activate with the cloud</h2>
+        <form id="form-activate">
+          <label for="activation-code">Activation code</label>
+          <input
+            id="activation-code"
+            name="activation_code"
+            required
+            placeholder="K7M2-9QXD-4TWH"
+            autocomplete="off"
+          />
+          <label for="cloud-url">Cloud URL (only when it is not built in)</label>
+          <input
+            id="cloud-url"
+            name="cloud_url"
+            type="url"
+            placeholder="https://cloud.example.com"
+          />
+          <button type="submit">Activate</button>
+        </form>
+        <p class="muted">
+          Create the code in the cloud under Sync devices. It is valid for 72 hours and can be used
+          once.
+        </p>
+      </section>
+
+      <p id="message" class="message" role="status" aria-live="polite"></p>
+    </main>
+    <script src="/static/setup.js"></script>
+  </body>
+</html>

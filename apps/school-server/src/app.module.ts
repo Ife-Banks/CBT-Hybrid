@@ -10,17 +10,19 @@ import { HealthModule } from './modules/health/health.module';
 import { DatabaseModule } from './shared/database/database.module';
 import { LoggerModule } from './shared/logger/logger.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { SetupModule } from './modules/setup/setup.module';
 
 @Module({
   imports: [
     LoggerModule,
     SchoolConfigModule,
     DatabaseModule,
-    ExamModule,      // Must be before HealthModule (which imports SyncModule -> ExamModule)
+    ExamModule, // Must be before HealthModule (which imports SyncModule -> ExamModule)
     HealthModule,
     ConsoleModule,
     SyncModule,
     AdminModule,
+    SetupModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },

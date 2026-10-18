@@ -10,6 +10,12 @@ export const META_KEYS = {
   cloudPublicKey: 'cloud_public_key',
   schemaVersion: 'schema_version',
   consolePinHash: 'console_pin_hash',
+  // First-run setup (CBT-04 section 6.3 step 8).
+  cloudUrl: 'cloud_url',
+  secondBackupPath: 'second_backup_path',
+  setupCompletedAt: 'setup_completed_at',
+  syncIntervalSeconds: 'sync_interval_seconds',
+  initialCursor: 'initial_cursor',
 } as const;
 
 /** Prefix for the per-pack data key, stored base64 (`pack_key:<pack_id>`). */

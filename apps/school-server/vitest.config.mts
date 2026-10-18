@@ -20,5 +20,8 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
+    // e2e specs boot a full Nest app in `beforeAll`; under `turbo` parallel runs
+    // that can exceed the 10s default and fail the hook.
+    hookTimeout: 30_000,
   },
 });

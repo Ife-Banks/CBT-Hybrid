@@ -35,6 +35,11 @@ export const ERROR_CATALOGUE = {
   INVITE_USED: { status: 410, title: 'Invitation already used' },
   INVITE_REVOKED: { status: 410, title: 'Invitation revoked' },
 
+  // Device activation (API spec 13.3)
+  ACTIVATION_CODE_INVALID: { status: 404, title: 'Activation code invalid' },
+  ACTIVATION_CODE_EXPIRED: { status: 410, title: 'Activation code expired' },
+  ACTIVATION_CODE_USED: { status: 410, title: 'Activation code already used' },
+
   // One-time codes and lockouts
   OTP_INVALID: { status: 400, title: 'Invalid one-time code' },
   OTP_LOCKED: { status: 429, title: 'Too many wrong codes' },

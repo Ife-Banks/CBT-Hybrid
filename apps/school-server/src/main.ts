@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { SchoolConfigService } from './common/config/school-config.service';
 import { LoggerService } from './shared/logger/logger.service';
+import { resolveExamClientDir, resolveWebDir } from './modules/setup/web-pages';
 import { VERSION } from '@cbt/shared-types';
 
 async function bootstrap(): Promise<void> {
@@ -23,9 +24,21 @@ async function bootstrap(): Promise<void> {
     .addTag('health', 'Health check endpoints')
     .addTag('exam', 'Exam delivery endpoints')
     .addTag('admin', 'Admin endpoints')
+    .addTag('setup', 'First-run setup endpoints')
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, document);
+
+  // Static bundles: the exam client at the root (the lab shortcut points at
+  // `http://<server>/?seat=<PC>`), and the setup page's CSS/JS under `/static`.
+  const clientDir = resolveExamClientDir();
+  if (clientDir) {
+    app.useStaticAssets(clientDir, { prefix: '/' });
+  }
+  const webDir = resolveWebDir();
+  if (webDir) {
+    app.useStaticAssets(webDir, { prefix: '/static/' });
+  }
 
   app.use(helmet());
   app.enableCors({ origin: true, credentials: true });

@@ -102,12 +102,12 @@ until a certificate is available.
 ## Not yet implemented (deferred M12 items)
 
 - In-app update download, verify, apply and rollback (section 6.4).
-- DPAPI-protected `secrets\device.bin`.
 - Restore from backup / from the cloud.
 - Automated install tests on Windows 10/11 VMs with Defender and a third-party
   antivirus (the section M12 acceptance tests).
-- The server side of `/setup` (first-run activation, console PIN, second backup
-  path, QR code) — the installer opens the page but the route is still pending.
+- The QR code on the `/setup` page. The page itself, the console PIN, the second
+  backup path and activation are implemented; the server address and the lab
+  shortcut downloads stand in for the QR code for now.
 
 ## Verifying the bundle
 

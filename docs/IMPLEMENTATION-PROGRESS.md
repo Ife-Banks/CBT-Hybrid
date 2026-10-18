@@ -416,9 +416,42 @@ cancel and report.
 - Verified by booting the bundled server: `/health` returns `ok` with the SQLite
   database migrated from the shipped migrations folder, and `/docs` plus
   `/docs-json` respond.
-- **Deferred (M12 remainder):** in-app update/rollback, DPAPI device secret,
-  restore from backup or cloud, and the server side of `/setup`. WinSW must be
-  placed in `apps/installer/vendor/` and Inno Setup installed to compile.
+- **Deferred (M12 remainder):** in-app update/rollback, restore from backup or
+  cloud, and the cloud side of activation (`/sync-devices/activation-codes` and
+  `/sync/v1/activate`). WinSW must be placed in `apps/installer/vendor/` and Inno
+  Setup installed to compile.
+
+### First-run setup page (M12, second slice) ✅
+- The server side of `/setup` (CBT-04 section 6.3 step 8) now exists, so the
+  installer's "finish setup" link resolves instead of 404ing.
+- `GET /setup` serves `public/setup.html`; its CSS and JS are shipped beside it
+  and served from `/static/`, so the page works under the strict CSP helmet
+  applies to every response. `main.ts` also serves the exam client at `/`.
+- `SetupController` (`/api/v1/setup`) exposes `GET status`, `POST school`,
+  `POST console-pin`, `POST backup-path`, `POST activate`, `GET lab-shortcut`
+  and the `.url`/`.bat` downloads. `SetupService` stores the school name, hashes
+  the initial console PIN with argon2 (only while no PIN exists), checks the
+  second backup folder is writable before recording it, and generates the lab
+  shortcut files from the server's LAN address (spec 6.6).
+- `ActivationService` performs the one unsigned sync call, `POST
+  /sync/v1/activate` (spec 13.3): it sends the code, device name, software
+  version, platform block and a `machine_id_hash`, then stores the school,
+  device id, key id, cloud public key and cursor in `meta`, and the issued
+  secret through `DeviceSecretStore`. Cloud rejections map onto
+  `ACTIVATION_CODE_INVALID` / `ACTIVATION_CODE_EXPIRED` / `ACTIVATION_CODE_USED`.
+- `DeviceSecretStore` writes `<dataDir>/secrets/device.bin`, protected with
+  Windows DPAPI at machine scope via PowerShell (spec 6.1); where DPAPI is
+  unavailable it logs a warning and falls back to the raw bytes, and tests use
+  an in-memory store. `MACHINE_ID_HASH` and `ACTIVATION_HTTP` are injectable so
+  no test spawns PowerShell or touches the network.
+- `zodOrThrow` moved to `common/validation/zod.ts` (the console DTO re-exports
+  it) so the setup DTOs share it.
+- Covered by three specs: `setup.service.spec.ts`, `activation.service.spec.ts`,
+  `device-secret.store.spec.ts`, plus `setup.e2e.spec.ts` (page, status, PIN
+  once-only, backup path, lab shortcut, activation and completed setup).
+- **Deferred (M12 remainder):** in-app update/rollback (spec 6.4) and restore
+  from the cloud backup. The console page still has inline CSS/JS, so it is not
+  served yet.
 
 ## Technical Patterns Established
 
